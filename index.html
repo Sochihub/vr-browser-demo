@@ -78,6 +78,11 @@
             margin: 20px 0;
             border: 2px solid rgba(79, 195, 247, 0.3);
             position: relative;
+            cursor: grab;
+        }
+        
+        .three-container:active {
+            cursor: grabbing;
         }
         
         .url-input {
@@ -108,6 +113,24 @@
             flex-wrap: wrap;
             gap: 10px;
             margin: 15px 0;
+        }
+        
+        .mode-controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 10px 0;
+            flex-wrap: wrap;
+        }
+        
+        .mode-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(79, 195, 247, 0.3);
+        }
+        
+        .mode-btn.active {
+            background: linear-gradient(45deg, #2196F3, #21CBF3);
+            border: 1px solid #4fc3f7;
         }
         
         button {
@@ -155,6 +178,15 @@
             border-radius: 20px;
         }
         
+        .instructions {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+        
         @media (max-width: 768px) {
             .features-grid {
                 grid-template-columns: 1fr;
@@ -177,7 +209,7 @@
 <body>
     <div class="container">
         <header>
-            <h1>🌐 VR Browser1 3D</h1>
+            <h1>🌐 VR Browser 3D</h1>
             <p class="subtitle">Инновационный 3D-браузер для виртуальной реальности. Демонстрация возможностей с Three.js</p>
         </header>
         
@@ -210,18 +242,30 @@
                 <button onclick="addWebsiteToScene()">➕ Добавить сайт</button>
             </div>
             
+            <div class="mode-controls">
+                <button class="mode-btn active" onclick="setMode('select')" id="selectMode">👆 Выбор</button>
+                <button class="mode-btn" onclick="setMode('move')" id="moveMode">✋ Перемещение</button>
+                <button class="mode-btn" onclick="setMode('rotate')" id="rotateMode">🔄 Вращение</button>
+            </div>
+            
             <div class="three-container" id="threeContainer"></div>
+            
+            <div class="instructions" id="instructions">
+                👆 Режим выбора: Кликните по объекту для выбора<br>
+                ✋ Режим перемещения: Выберите объект и перетащите мышью<br>
+                🔄 Режим вращения: Выберите объект и двигайте мышью для вращения
+            </div>
             
             <div class="controls">
                 <button onclick="addFlatSite()">➕ Плоский сайт</button>
                 <button onclick="addVRSphere()">🟠 VR Сфера</button>
                 <button onclick="addWaterSurface()">🌊 Вода</button>
-                <button onclick="rotateScene()">🔄 Поворот</button>
+                <button onclick="rotateScene()">🔄 Поворот камеры</button>
                 <button onclick="resetScene()">🔄 Сброс</button>
             </div>
             
             <div style="background:rgba(0,0,0,0.5);padding:10px;border-radius:10px;margin:15px 0;font-size:0.9rem" id="sceneInfo">
-                Объектов: 0 | FPS: 60 | Готов к взаимодействию
+                Объектов: 0 | FPS: 60 | Режим: Выбор | Выбран: Нет
             </div>
         </div>
         
@@ -253,7 +297,11 @@
 
     <script>
         let scene, camera, renderer, objects = [], objectCount = 0, selectedObject = null, raycaster, mouse, clock = new THREE.Clock();
-        let websiteTextures = {};
+        let currentMode = 'select'; // 'select', 'move', 'rotate'
+        let isDragging = false;
+        let previousMousePosition = { x: 0, y: 0 };
+        let dragPlane = null;
+        let dragOffset = new THREE.Vector3();
 
         function init() {
             scene = new THREE.Scene();
@@ -281,11 +329,16 @@
             directionalLight.castShadow = true;
             scene.add(directionalLight);
 
+            // Создаем плоскость для перемещения объектов
+            dragPlane = new THREE.Plane();
+
             raycaster = new THREE.Raycaster();
             mouse = new THREE.Vector2();
 
             window.addEventListener('resize', onWindowResize);
-            document.addEventListener('click', onMouseClick);
+            document.addEventListener('mousedown', onMouseDown);
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
 
             addInitialObjects();
 
@@ -317,7 +370,6 @@
                 return;
             }
 
-            // Проверяем, является ли URL действительным
             try {
                 new URL(url);
             } catch (e) {
@@ -325,7 +377,6 @@
                 return;
             }
 
-            // Создаем плоскость для отображения сайта
             const geometry = new THREE.PlaneGeometry(5, 3);
             const material = new THREE.MeshStandardMaterial({ 
                 color: 0xffffff,
@@ -351,7 +402,6 @@
             updateSceneInfo();
             objectCount++;
 
-            // Добавляем текст с URL
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
             canvas.width = 256;
@@ -375,7 +425,9 @@
             const textGeometry = new THREE.PlaneGeometry(5, 0.5);
             const textMesh = new THREE.Mesh(textGeometry, textMaterial);
             textMesh.position.set(websitePlane.position.x, websitePlane.position.y - 2, websitePlane.position.z);
+            textMesh.userData = { attachedTo: websitePlane };
             scene.add(textMesh);
+            objects.push(textMesh);
         }
 
         function addFlatSite() {
@@ -444,6 +496,139 @@
             objectCount++;
         }
 
+        function setMode(mode) {
+            currentMode = mode;
+            
+            // Обновляем кнопки режимов
+            document.getElementById('selectMode').classList.remove('active');
+            document.getElementById('moveMode').classList.remove('active');
+            document.getElementById('rotateMode').classList.remove('active');
+            
+            switch(mode) {
+                case 'select':
+                    document.getElementById('selectMode').classList.add('active');
+                    break;
+                case 'move':
+                    document.getElementById('moveMode').classList.add('active');
+                    break;
+                case 'rotate':
+                    document.getElementById('rotateMode').classList.add('active');
+                    break;
+            }
+            
+            updateSceneInfo();
+        }
+
+        function onMouseDown(event) {
+            const rect = renderer.domElement.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+
+            const intersects = raycaster.intersectObjects(objects);
+
+            if (intersects.length > 0) {
+                const object = intersects[0].object;
+                
+                // Если объект прикреплен к другому объекту (например, текст), выбираем основной объект
+                const mainObject = object.userData.attachedTo || object;
+                
+                if (currentMode === 'select') {
+                    selectObject(mainObject);
+                } else if (currentMode === 'move' || currentMode === 'rotate') {
+                    selectObject(mainObject);
+                    isDragging = true;
+                    previousMousePosition = { x: event.clientX, y: event.clientY };
+                    
+                    // Устанавливаем плоскость для перемещения
+                    if (currentMode === 'move') {
+                        dragPlane.setFromNormalAndCoplanarPoint(
+                            camera.getWorldDirection(new THREE.Vector3()),
+                            mainObject.position
+                        );
+                    }
+                }
+
+                // Анимация взаимодействия
+                mainObject.scale.set(1.1, 1.1, 1.1);
+                setTimeout(() => {
+                    if (mainObject) mainObject.scale.set(1, 1, 1);
+                }, 100);
+            } else {
+                if (currentMode === 'select') {
+                    deselectObject();
+                }
+            }
+        }
+
+        function onMouseMove(event) {
+            if (!isDragging || !selectedObject) return;
+
+            const deltaX = event.clientX - previousMousePosition.x;
+            const deltaY = event.clientY - previousMousePosition.y;
+
+            if (currentMode === 'move') {
+                // Перемещение объекта
+                const rect = renderer.domElement.getBoundingClientRect();
+                const mouseNew = new THREE.Vector2();
+                mouseNew.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+                mouseNew.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+                raycaster.setFromCamera(mouseNew, camera);
+                
+                const intersection = new THREE.Vector3();
+                if (raycaster.ray.intersectPlane(dragPlane, intersection)) {
+                    selectedObject.position.copy(intersection);
+                    
+                    // Обновляем позицию прикрепленных объектов (например, текста)
+                    objects.forEach(obj => {
+                        if (obj.userData.attachedTo === selectedObject) {
+                            obj.position.x = selectedObject.position.x;
+                            obj.position.y = selectedObject.position.y - 2;
+                            obj.position.z = selectedObject.position.z;
+                        }
+                    });
+                }
+            } else if (currentMode === 'rotate') {
+                // Вращение объекта
+                selectedObject.rotation.y += deltaX * 0.01;
+                selectedObject.rotation.x += deltaY * 0.01;
+                
+                // Ограничиваем вращение по X
+                selectedObject.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, selectedObject.rotation.x));
+            }
+
+            previousMousePosition = { x: event.clientX, y: event.clientY };
+        }
+
+        function onMouseUp() {
+            isDragging = false;
+        }
+
+        function selectObject(object) {
+            if (selectedObject) {
+                selectedObject.material.emissiveIntensity = 
+                    selectedObject.userData.type === 'vrSphere' ? 0.3 : 
+                    selectedObject.userData.type === 'website' ? 0.1 : 0.2;
+            }
+
+            selectedObject = object;
+            object.material.emissiveIntensity = 0.8;
+
+            updateSceneInfo();
+        }
+
+        function deselectObject() {
+            if (selectedObject) {
+                selectedObject.material.emissiveIntensity = 
+                    selectedObject.userData.type === 'vrSphere' ? 0.3 : 
+                    selectedObject.userData.type === 'website' ? 0.1 : 0.2;
+                selectedObject = null;
+                updateSceneInfo();
+            }
+        }
+
         function rotateScene() {
             const time = Date.now() * 0.001;
             camera.position.x = Math.sin(time * 0.5) * 15;
@@ -457,66 +642,22 @@
             });
             objects = [];
             objectCount = 0;
+            selectedObject = null;
 
             addInitialObjects();
+            updateSceneInfo();
         }
 
-        function onMouseClick(event) {
-            const rect = renderer.domElement.getBoundingClientRect();
-            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
-            raycaster.setFromCamera(mouse, camera);
-
-            const intersects = raycaster.intersectObjects(objects);
-
-            if (intersects.length > 0) {
-                const object = intersects[0].object;
-                selectObject(object);
-
-                // Если это сайт, показываем URL
-                if (object.userData.type === 'website') {
-                    alert('Сайт: ' + object.userData.url + '\n\nВ полноценной версии здесь будет отображаться содержимое сайта!');
-                }
-
-                // Animation interaction
-                object.scale.set(1.2, 1.2, 1.2);
-                setTimeout(() => {
-                    if (object) object.scale.set(1, 1, 1);
-                }, 200);
-            } else {
-                deselectObject();
-            }
-        }
-
-        function selectObject(object) {
-            if (selectedObject) {
-                selectedObject.material.emissiveIntensity = 
-                    selectedObject.userData.type === 'vrSphere' ? 0.3 : 
-                    selectedObject.userData.type === 'website' ? 0.1 : 0.2;
-            }
-
-            selectedObject = object;
-            object.material.emissiveIntensity = 0.8;
-
-            updateSceneInfo(`Выбран: ${object.userData.type} #${object.userData.id}`);
-        }
-
-        function deselectObject() {
-            if (selectedObject) {
-                selectedObject.material.emissiveIntensity = 
-                    selectedObject.userData.type === 'vrSphere' ? 0.3 : 
-                    selectedObject.userData.type === 'website' ? 0.1 : 0.2;
-                selectedObject = null;
-                updateSceneInfo();
-            }
-        }
-
-        function updateSceneInfo(message) {
+        function updateSceneInfo() {
             const infoElement = document.getElementById('sceneInfo');
             const fps = Math.round(1 / clock.getDelta());
-            const status = message || 'Готов к взаимодействию';
-            infoElement.innerHTML = `Объектов в сцене: ${objects.length} | FPS: ${fps} | ${status}`;
+            const modeText = {
+                'select': 'Выбор',
+                'move': 'Перемещение',
+                'rotate': 'Вращение'
+            };
+            const selectedText = selectedObject ? `${selectedObject.userData.type} #${selectedObject.userData.id}` : 'Нет';
+            infoElement.innerHTML = `Объектов: ${objects.length - 1} | FPS: ${fps} | Режим: ${modeText[currentMode]} | Выбран: ${selectedText}`;
         }
 
         function onWindowResize() {
@@ -533,7 +674,7 @@
 
             const time = Date.now() * 0.001;
             objects.forEach((obj, index) => {
-                if (obj.userData.type === 'vrSphere') {
+                if (obj.userData.type === 'vrSphere' && obj !== selectedObject) {
                     obj.rotation.y += 0.01;
                     obj.position.y = 2 + Math.sin(time + index) * 0.2;
                 }
@@ -547,11 +688,6 @@
             updateSceneInfo();
         }
 
-        function showInterest() {
-            alert('Спасибо за интерес! Мы свяжемся с вами при запуске MVP версии VR Browser. Ожидайте в ближайшие 2-3 месяца!');
-        }
-
-        // Initialize the scene when the page loads
         window.onload = init;
     </script>
 </body>

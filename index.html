@@ -1,11 +1,10 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VR Browser - 3D Демонстрация</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -196,6 +195,16 @@
             flex-wrap: wrap;
         }
         
+        .loading-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 5px 10px;
+            border-radius: 10px;
+            font-size: 0.8rem;
+        }
+        
         @media (max-width: 768px) {
             .features-grid {
                 grid-template-columns: 1fr;
@@ -219,7 +228,7 @@
     <div class="container">
         <header>
             <h1>🌐 VR Browser 3D</h1>
-            <p class="subtitle">Инновационный 3D-браузер для виртуальной реальности. Демонстрация возможностей с Three.js и A-Frame</p>
+            <p class="subtitle">Инновационный 3D-браузер для виртуальной реальности. Демонстрация возможностей с Three.js</p>
         </header>
         
         <div class="stats">
@@ -263,7 +272,9 @@
                 <button onclick="resetCamera()">🔄 Сброс камеры</button>
             </div>
             
-            <div class="three-container" id="threeContainer"></div>
+            <div class="three-container" id="threeContainer">
+                <div class="loading-indicator" id="loadingIndicator">Готов к работе</div>
+            </div>
             
             <div class="instructions" id="instructions">
                 👆 Режим выбора: Кликните по объекту для выбора<br>
@@ -277,6 +288,8 @@
                 <button onclick="addVRSphere()">🟠 VR Сфера</button>
                 <button onclick="addWaterSurface()">🌊 Вода</button>
                 <button onclick="addInteractiveCube()">🟦 Интерактивный куб</button>
+                <button onclick="addDemoWebsite('youtube')">📺 YouTube</button>
+                <button onclick="addDemoWebsite('github')">💻 GitHub</button>
                 <button onclick="resetScene()">🔄 Сброс</button>
             </div>
             
@@ -304,8 +317,8 @@
             <h3>🚀 Готовы к новому измерению интернета?</h3>
             <p>VR Browser - будущее веб-навигации уже здесь</p>
             <div style="margin-top:20px">
-                <button style="background:linear-gradient(45deg,#ff6b6b,#ee5a24);padding:12px 30px;font-size:1.1rem" onclick="alert('Спасибо за интерес! Мы свяжемся при запуске MVP.')">
-                    Узнать о запуске
+                <button style="background:linear-gradient(45deg,#ff6b6b,#ee5a24);padding:12px 30px;font-size:1.1rem" onclick="showInterestForm()">
+                    Узнать о запуске MVP
                 </button>
             </div>
         </footer>
@@ -322,6 +335,7 @@
         let cameraTarget = new THREE.Vector3(0, 0, 0);
         let cameraAngle = { x: 0, y: 0 };
         let zoomLevel = 1;
+        let websiteTextures = {};
 
         function init() {
             scene = new THREE.Scene();
@@ -406,49 +420,25 @@
                 return;
             }
 
-            // Создаем iframe для отображения сайта
-            const iframe = document.createElement('iframe');
-            iframe.src = url;
-            iframe.style.width = '800px';
-            iframe.style.height = '600px';
-            iframe.style.border = 'none';
-            iframe.sandbox = 'allow-scripts allow-same-origin allow-forms';
+            createWebsiteObject(url);
+        }
+
+        function addDemoWebsite(type) {
+            const urls = {
+                'youtube': 'https://www.youtube.com',
+                'github': 'https://www.github.com'
+            };
+            createWebsiteObject(urls[type]);
+        }
+
+        function createWebsiteObject(url) {
+            updateLoadingIndicator('Создание объекта сайта...');
             
-            // Создаем элемент A-Frame для отображения iframe
-            const aframeScene = document.createElement('a-scene');
-            aframeScene.setAttribute('embedded', '');
-            aframeScene.setAttribute('vr-mode-ui', 'enabled: false');
-            aframeScene.style.width = '400px';
-            aframeScene.style.height = '300px';
-            
-            const aframeBox = document.createElement('a-box');
-            aframeBox.setAttribute('position', '0 0 -5');
-            aframeBox.setAttribute('rotation', '0 0 0');
-            aframeBox.setAttribute('color', '#4fc3f7');
-            aframeBox.setAttribute('width', '4');
-            aframeBox.setAttribute('height', '3');
-            aframeBox.setAttribute('depth', '0.1');
-            
-            aframeScene.appendChild(aframeBox);
-            
-            // Для демонстрации создаем плоскость с текстурой
+            // Создаем плоскость для отображения сайта
             const geometry = new THREE.PlaneGeometry(4, 3);
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            canvas.width = 512;
-            canvas.height = 384;
             
-            ctx.fillStyle = '#4fc3f7';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            ctx.fillStyle = 'white';
-            ctx.font = '20px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText('Сайт:', canvas.width/2, 50);
-            ctx.fillText(url, canvas.width/2, 80);
-            ctx.fillText('Загрузка...', canvas.width/2, canvas.height/2);
-            
-            const texture = new THREE.CanvasTexture(canvas);
+            // Создаем текстуру с имитацией сайта
+            const texture = createWebsiteTexture(url);
             const material = new THREE.MeshBasicMaterial({ 
                 map: texture,
                 side: THREE.DoubleSide
@@ -471,20 +461,7 @@
             objectCount++;
 
             // Добавляем текст с URL
-            const textCanvas = document.createElement('canvas');
-            const textCtx = textCanvas.getContext('2d');
-            textCanvas.width = 256;
-            textCanvas.height = 64;
-            
-            textCtx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-            textCtx.fillRect(0, 0, textCanvas.width, textCanvas.height);
-            
-            textCtx.fillStyle = 'white';
-            textCtx.font = '16px Arial';
-            textCtx.fillText('Сайт: ' + getDomainFromUrl(url), 10, 30);
-            textCtx.fillText('Кликните для взаимодействия', 10, 55);
-            
-            const textTexture = new THREE.CanvasTexture(textCanvas);
+            const textTexture = createURLTexture(url);
             const textMaterial = new THREE.MeshBasicMaterial({ 
                 map: textTexture,
                 transparent: true,
@@ -497,6 +474,82 @@
             textMesh.userData = { attachedTo: websitePlane };
             scene.add(textMesh);
             objects.push(textMesh);
+            
+            updateLoadingIndicator('Объект создан');
+            setTimeout(() => updateLoadingIndicator('Готов к работе'), 2000);
+        }
+
+        function createWebsiteTexture(url) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 512;
+            canvas.height = 384;
+            
+            // Фон в зависимости от сайта
+            const domain = getDomainFromUrl(url);
+            let bgColor = '#4fc3f7';
+            if (domain.includes('youtube')) bgColor = '#ff0000';
+            if (domain.includes('github')) bgColor = '#333333';
+            if (domain.includes('google')) bgColor = '#4285f4';
+            
+            // Градиентный фон
+            const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+            gradient.addColorStop(0, bgColor);
+            gradient.addColorStop(1, lightenColor(bgColor, 30));
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Имитация элементов сайта
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.fillRect(20, 20, canvas.width - 40, 40); // Шапка
+            
+            // Навигация
+            ctx.fillStyle = lightenColor(bgColor, 50);
+            for (let i = 0; i < 5; i++) {
+                ctx.fillRect(40 + i * 80, 30, 60, 20);
+            }
+            
+            // Контент
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            for (let i = 0; i < 8; i++) {
+                const y = 80 + i * 35;
+                ctx.fillRect(30, y, canvas.width - 60, 25);
+                if (i % 3 === 0) {
+                    ctx.fillRect(30, y + 30, 100, 60); // Имитация изображений
+                }
+            }
+            
+            // Логотип
+            ctx.fillStyle = bgColor;
+            ctx.font = 'bold 24px Arial';
+            ctx.fillText(domain.substring(0, 2).toUpperCase(), 30, 45);
+            
+            // Статус загрузки
+            ctx.fillStyle = 'rgba(0, 255, 0, 0.7)';
+            ctx.beginPath();
+            ctx.arc(canvas.width - 30, 40, 8, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            return texture;
+        }
+
+        function createURLTexture(url) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 256;
+            canvas.height = 64;
+            
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = 'white';
+            ctx.font = '14px Arial';
+            ctx.fillText('Сайт: ' + getDomainFromUrl(url), 10, 25);
+            ctx.fillText('Статус: Загружен', 10, 45);
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            return texture;
         }
 
         function getDomainFromUrl(url) {
@@ -506,6 +559,17 @@
             } catch (e) {
                 return url;
             }
+        }
+
+        function lightenColor(color, percent) {
+            let num = parseInt(color.replace("#", ""), 16);
+            let amt = Math.round(2.55 * percent);
+            let R = (num >> 16) + amt;
+            let G = (num >> 8 & 0x00FF) + amt;
+            let B = (num & 0x0000FF) + amt;
+            return "#" + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
+                (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
+                (B < 255 ? B < 1 ? 0 : B : 255)).toString(16).slice(1);
         }
 
         function addFlatSite() {
@@ -654,6 +718,11 @@
                 setTimeout(() => {
                     if (mainObject) mainObject.scale.set(1, 1, 1);
                 }, 100);
+                
+                // Если это сайт, показываем информацию
+                if (mainObject.userData.type === 'website') {
+                    updateLoadingIndicator('Выбран сайт: ' + getDomainFromUrl(mainObject.userData.url));
+                }
             } else {
                 if (currentMode === 'select') {
                     deselectObject();
@@ -780,6 +849,7 @@
             addInitialObjects();
             resetCamera();
             updateSceneInfo();
+            updateLoadingIndicator('Сцена сброшена');
         }
 
         function updateSceneInfo() {
@@ -793,6 +863,30 @@
             const selectedText = selectedObject ? `${selectedObject.userData.type} #${selectedObject.userData.id}` : 'Нет';
             const zoomPercent = Math.round(zoomLevel * 100);
             infoElement.innerHTML = `Объектов: ${objects.length - 1} | FPS: ${fps} | Режим: ${modeText[currentMode]} | Выбран: ${selectedText} | Zoom: ${zoomPercent}%`;
+        }
+
+        function updateLoadingIndicator(message) {
+            const indicator = document.getElementById('loadingIndicator');
+            indicator.textContent = message;
+            indicator.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+            
+            // Если сообщение об ошибке, делаем красный фон
+            if (message.includes('Ошибка') || message.includes('Ошибка')) {
+                indicator.style.backgroundColor = 'rgba(255, 0, 0, 0.7)';
+            }
+        }
+
+        function showInterestForm() {
+            const email = prompt('Введите ваш email для получения уведомления о запуске MVP:');
+            if (email) {
+                try {
+                    new URL('http://' + email); // Простая валидация
+                    alert('Спасибо! Мы свяжемся с вами при запуске MVP версии VR Browser.');
+                    updateLoadingIndicator('Подписка оформлена');
+                } catch (e) {
+                    alert('Пожалуйста, введите действительный email.');
+                }
+            }
         }
 
         function onWindowResize() {

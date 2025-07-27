@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VR Browser - 3D Демонстрация</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -187,6 +188,14 @@
             text-align: center;
         }
         
+        .camera-controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 10px 0;
+            flex-wrap: wrap;
+        }
+        
         @media (max-width: 768px) {
             .features-grid {
                 grid-template-columns: 1fr;
@@ -210,7 +219,7 @@
     <div class="container">
         <header>
             <h1>🌐 VR Browser 3D</h1>
-            <p class="subtitle">Инновационный 3D-браузер для виртуальной реальности. Демонстрация возможностей с Three.js</p>
+            <p class="subtitle">Инновационный 3D-браузер для виртуальной реальности. Демонстрация возможностей с Three.js и A-Frame</p>
         </header>
         
         <div class="stats">
@@ -238,7 +247,7 @@
             <h2 style="color:#4fc3f7;margin-bottom:15px">🎮 Интерактивная 3D Демонстрация</h2>
             
             <div class="url-input">
-                <input type="url" id="websiteUrl" placeholder="Введите URL сайта (например: https://www.youtube.com)" value="https://www.youtube.com">
+                <input type="url" id="websiteUrl" placeholder="Введите URL сайта (например: https://www.youtube.com)" value="https://threejs.org">
                 <button onclick="addWebsiteToScene()">➕ Добавить сайт</button>
             </div>
             
@@ -248,24 +257,31 @@
                 <button class="mode-btn" onclick="setMode('rotate')" id="rotateMode">🔄 Вращение</button>
             </div>
             
+            <div class="camera-controls">
+                <button onclick="zoomIn()">🔍 Приблизить</button>
+                <button onclick="zoomOut()">🔎 Отдалить</button>
+                <button onclick="resetCamera()">🔄 Сброс камеры</button>
+            </div>
+            
             <div class="three-container" id="threeContainer"></div>
             
             <div class="instructions" id="instructions">
                 👆 Режим выбора: Кликните по объекту для выбора<br>
                 ✋ Режим перемещения: Выберите объект и перетащите мышью<br>
-                🔄 Режим вращения: Выберите объект и двигайте мышью для вращения
+                🔄 Режим вращения: Выберите объект и двигайте мышью для вращения<br>
+                🖱️ Используйте колесо мыши для масштабирования
             </div>
             
             <div class="controls">
                 <button onclick="addFlatSite()">➕ Плоский сайт</button>
                 <button onclick="addVRSphere()">🟠 VR Сфера</button>
                 <button onclick="addWaterSurface()">🌊 Вода</button>
-                <button onclick="rotateScene()">🔄 Поворот камеры</button>
+                <button onclick="addInteractiveCube()">🟦 Интерактивный куб</button>
                 <button onclick="resetScene()">🔄 Сброс</button>
             </div>
             
             <div style="background:rgba(0,0,0,0.5);padding:10px;border-radius:10px;margin:15px 0;font-size:0.9rem" id="sceneInfo">
-                Объектов: 0 | FPS: 60 | Режим: Выбор | Выбран: Нет
+                Объектов: 0 | FPS: 60 | Режим: Выбор | Выбран: Нет | Zoom: 100%
             </div>
         </div>
         
@@ -302,6 +318,10 @@
         let previousMousePosition = { x: 0, y: 0 };
         let dragPlane = null;
         let dragOffset = new THREE.Vector3();
+        let cameraDistance = 15;
+        let cameraTarget = new THREE.Vector3(0, 0, 0);
+        let cameraAngle = { x: 0, y: 0 };
+        let zoomLevel = 1;
 
         function init() {
             scene = new THREE.Scene();
@@ -312,7 +332,7 @@
                 document.getElementById('threeContainer').clientWidth / 
                 document.getElementById('threeContainer').clientHeight, 
                 0.1, 1000);
-            camera.position.set(0, 5, 15);
+            updateCameraPosition();
 
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(
@@ -335,14 +355,23 @@
             raycaster = new THREE.Raycaster();
             mouse = new THREE.Vector2();
 
+            // Добавляем обработчики событий
             window.addEventListener('resize', onWindowResize);
             document.addEventListener('mousedown', onMouseDown);
             document.addEventListener('mousemove', onMouseMove);
             document.addEventListener('mouseup', onMouseUp);
+            document.getElementById('threeContainer').addEventListener('wheel', onMouseWheel);
 
             addInitialObjects();
 
             animate();
+        }
+
+        function updateCameraPosition() {
+            camera.position.x = cameraTarget.x + Math.sin(cameraAngle.y) * Math.cos(cameraAngle.x) * cameraDistance;
+            camera.position.y = cameraTarget.y + Math.sin(cameraAngle.x) * cameraDistance;
+            camera.position.z = cameraTarget.z + Math.cos(cameraAngle.y) * Math.cos(cameraAngle.x) * cameraDistance;
+            camera.lookAt(cameraTarget);
         }
 
         function addInitialObjects() {
@@ -377,14 +406,52 @@
                 return;
             }
 
-            const geometry = new THREE.PlaneGeometry(5, 3);
-            const material = new THREE.MeshStandardMaterial({ 
-                color: 0xffffff,
-                transparent: true,
-                opacity: 0.9,
-                side: THREE.DoubleSide,
-                emissive: 0x4fc3f7,
-                emissiveIntensity: 0.1
+            // Создаем iframe для отображения сайта
+            const iframe = document.createElement('iframe');
+            iframe.src = url;
+            iframe.style.width = '800px';
+            iframe.style.height = '600px';
+            iframe.style.border = 'none';
+            iframe.sandbox = 'allow-scripts allow-same-origin allow-forms';
+            
+            // Создаем элемент A-Frame для отображения iframe
+            const aframeScene = document.createElement('a-scene');
+            aframeScene.setAttribute('embedded', '');
+            aframeScene.setAttribute('vr-mode-ui', 'enabled: false');
+            aframeScene.style.width = '400px';
+            aframeScene.style.height = '300px';
+            
+            const aframeBox = document.createElement('a-box');
+            aframeBox.setAttribute('position', '0 0 -5');
+            aframeBox.setAttribute('rotation', '0 0 0');
+            aframeBox.setAttribute('color', '#4fc3f7');
+            aframeBox.setAttribute('width', '4');
+            aframeBox.setAttribute('height', '3');
+            aframeBox.setAttribute('depth', '0.1');
+            
+            aframeScene.appendChild(aframeBox);
+            
+            // Для демонстрации создаем плоскость с текстурой
+            const geometry = new THREE.PlaneGeometry(4, 3);
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 512;
+            canvas.height = 384;
+            
+            ctx.fillStyle = '#4fc3f7';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = 'white';
+            ctx.font = '20px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Сайт:', canvas.width/2, 50);
+            ctx.fillText(url, canvas.width/2, 80);
+            ctx.fillText('Загрузка...', canvas.width/2, canvas.height/2);
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            const material = new THREE.MeshBasicMaterial({ 
+                map: texture,
+                side: THREE.DoubleSide
             });
 
             const websitePlane = new THREE.Mesh(geometry, material);
@@ -394,7 +461,8 @@
             websitePlane.userData = { 
                 type: 'website', 
                 id: objectCount,
-                url: url
+                url: url,
+                texture: texture
             };
 
             scene.add(websitePlane);
@@ -402,32 +470,42 @@
             updateSceneInfo();
             objectCount++;
 
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            canvas.width = 256;
-            canvas.height = 64;
+            // Добавляем текст с URL
+            const textCanvas = document.createElement('canvas');
+            const textCtx = textCanvas.getContext('2d');
+            textCanvas.width = 256;
+            textCanvas.height = 64;
             
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            textCtx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            textCtx.fillRect(0, 0, textCanvas.width, textCanvas.height);
             
-            ctx.fillStyle = 'white';
-            ctx.font = '16px Arial';
-            ctx.fillText('Сайт: ' + url, 10, 30);
-            ctx.fillText('Кликните для взаимодействия', 10, 55);
+            textCtx.fillStyle = 'white';
+            textCtx.font = '16px Arial';
+            textCtx.fillText('Сайт: ' + getDomainFromUrl(url), 10, 30);
+            textCtx.fillText('Кликните для взаимодействия', 10, 55);
             
-            const texture = new THREE.CanvasTexture(canvas);
+            const textTexture = new THREE.CanvasTexture(textCanvas);
             const textMaterial = new THREE.MeshBasicMaterial({ 
-                map: texture,
+                map: textTexture,
                 transparent: true,
                 side: THREE.DoubleSide
             });
             
-            const textGeometry = new THREE.PlaneGeometry(5, 0.5);
+            const textGeometry = new THREE.PlaneGeometry(4, 0.5);
             const textMesh = new THREE.Mesh(textGeometry, textMaterial);
             textMesh.position.set(websitePlane.position.x, websitePlane.position.y - 2, websitePlane.position.z);
             textMesh.userData = { attachedTo: websitePlane };
             scene.add(textMesh);
             objects.push(textMesh);
+        }
+
+        function getDomainFromUrl(url) {
+            try {
+                const urlObj = new URL(url);
+                return urlObj.hostname;
+            } catch (e) {
+                return url;
+            }
         }
 
         function addFlatSite() {
@@ -496,6 +574,27 @@
             objectCount++;
         }
 
+        function addInteractiveCube() {
+            const geometry = new THREE.BoxGeometry(2, 2, 2);
+            const material = new THREE.MeshStandardMaterial({ 
+                color: 0x9c27b0,
+                emissive: 0x7b1fa2,
+                emissiveIntensity: 0.2,
+                roughness: 0.4,
+                metalness: 0.6
+            });
+
+            const cube = new THREE.Mesh(geometry, material);
+            cube.position.set(-3 + objectCount, 3, 3 + objectCount);
+            cube.castShadow = true;
+            cube.userData = { type: 'interactiveCube', id: objectCount };
+
+            scene.add(cube);
+            objects.push(cube);
+            updateSceneInfo();
+            objectCount++;
+        }
+
         function setMode(mode) {
             currentMode = mode;
             
@@ -559,51 +658,90 @@
                 if (currentMode === 'select') {
                     deselectObject();
                 }
+                // Если кликнули по пустому пространству, начинаем вращение камеры
+                isDragging = true;
+                previousMousePosition = { x: event.clientX, y: event.clientY };
             }
         }
 
         function onMouseMove(event) {
-            if (!isDragging || !selectedObject) return;
+            if (isDragging) {
+                const deltaX = event.clientX - previousMousePosition.x;
+                const deltaY = event.clientY - previousMousePosition.y;
 
-            const deltaX = event.clientX - previousMousePosition.x;
-            const deltaY = event.clientY - previousMousePosition.y;
+                if (selectedObject && (currentMode === 'move' || currentMode === 'rotate')) {
+                    // Перемещение или вращение объекта
+                    if (currentMode === 'move') {
+                        const rect = renderer.domElement.getBoundingClientRect();
+                        const mouseNew = new THREE.Vector2();
+                        mouseNew.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+                        mouseNew.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
-            if (currentMode === 'move') {
-                // Перемещение объекта
-                const rect = renderer.domElement.getBoundingClientRect();
-                const mouseNew = new THREE.Vector2();
-                mouseNew.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-                mouseNew.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
-                raycaster.setFromCamera(mouseNew, camera);
-                
-                const intersection = new THREE.Vector3();
-                if (raycaster.ray.intersectPlane(dragPlane, intersection)) {
-                    selectedObject.position.copy(intersection);
-                    
-                    // Обновляем позицию прикрепленных объектов (например, текста)
-                    objects.forEach(obj => {
-                        if (obj.userData.attachedTo === selectedObject) {
-                            obj.position.x = selectedObject.position.x;
-                            obj.position.y = selectedObject.position.y - 2;
-                            obj.position.z = selectedObject.position.z;
+                        raycaster.setFromCamera(mouseNew, camera);
+                        
+                        const intersection = new THREE.Vector3();
+                        if (raycaster.ray.intersectPlane(dragPlane, intersection)) {
+                            selectedObject.position.copy(intersection);
+                            
+                            // Обновляем позицию прикрепленных объектов
+                            objects.forEach(obj => {
+                                if (obj.userData.attachedTo === selectedObject) {
+                                    obj.position.x = selectedObject.position.x;
+                                    obj.position.y = selectedObject.position.y - 2;
+                                    obj.position.z = selectedObject.position.z;
+                                }
+                            });
                         }
-                    });
+                    } else if (currentMode === 'rotate') {
+                        selectedObject.rotation.y += deltaX * 0.01;
+                        selectedObject.rotation.x += deltaY * 0.01;
+                        selectedObject.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, selectedObject.rotation.x));
+                    }
+                } else if (!selectedObject) {
+                    // Вращение камеры
+                    cameraAngle.y -= deltaX * 0.01;
+                    cameraAngle.x -= deltaY * 0.01;
+                    cameraAngle.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, cameraAngle.x));
+                    updateCameraPosition();
                 }
-            } else if (currentMode === 'rotate') {
-                // Вращение объекта
-                selectedObject.rotation.y += deltaX * 0.01;
-                selectedObject.rotation.x += deltaY * 0.01;
-                
-                // Ограничиваем вращение по X
-                selectedObject.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, selectedObject.rotation.x));
-            }
 
-            previousMousePosition = { x: event.clientX, y: event.clientY };
+                previousMousePosition = { x: event.clientX, y: event.clientY };
+            }
         }
 
         function onMouseUp() {
             isDragging = false;
+        }
+
+        function onMouseWheel(event) {
+            event.preventDefault();
+            zoomLevel += event.deltaY * -0.001;
+            zoomLevel = Math.max(0.1, Math.min(zoomLevel, 5));
+            cameraDistance = 15 / zoomLevel;
+            updateCameraPosition();
+            updateSceneInfo();
+        }
+
+        function zoomIn() {
+            zoomLevel = Math.min(zoomLevel + 0.2, 5);
+            cameraDistance = 15 / zoomLevel;
+            updateCameraPosition();
+            updateSceneInfo();
+        }
+
+        function zoomOut() {
+            zoomLevel = Math.max(zoomLevel - 0.2, 0.1);
+            cameraDistance = 15 / zoomLevel;
+            updateCameraPosition();
+            updateSceneInfo();
+        }
+
+        function resetCamera() {
+            cameraDistance = 15;
+            cameraAngle = { x: 0, y: 0 };
+            zoomLevel = 1;
+            updateCameraPosition();
+            updateSceneInfo();
         }
 
         function selectObject(object) {
@@ -614,7 +752,9 @@
             }
 
             selectedObject = object;
-            object.material.emissiveIntensity = 0.8;
+            if (object.material) {
+                object.material.emissiveIntensity = 0.8;
+            }
 
             updateSceneInfo();
         }
@@ -629,13 +769,6 @@
             }
         }
 
-        function rotateScene() {
-            const time = Date.now() * 0.001;
-            camera.position.x = Math.sin(time * 0.5) * 15;
-            camera.position.z = Math.cos(time * 0.5) * 15;
-            camera.lookAt(0, 0, 0);
-        }
-
         function resetScene() {
             objects.forEach(obj => {
                 scene.remove(obj);
@@ -645,6 +778,7 @@
             selectedObject = null;
 
             addInitialObjects();
+            resetCamera();
             updateSceneInfo();
         }
 
@@ -657,7 +791,8 @@
                 'rotate': 'Вращение'
             };
             const selectedText = selectedObject ? `${selectedObject.userData.type} #${selectedObject.userData.id}` : 'Нет';
-            infoElement.innerHTML = `Объектов: ${objects.length - 1} | FPS: ${fps} | Режим: ${modeText[currentMode]} | Выбран: ${selectedText}`;
+            const zoomPercent = Math.round(zoomLevel * 100);
+            infoElement.innerHTML = `Объектов: ${objects.length - 1} | FPS: ${fps} | Режим: ${modeText[currentMode]} | Выбран: ${selectedText} | Zoom: ${zoomPercent}%`;
         }
 
         function onWindowResize() {
@@ -681,6 +816,11 @@
 
                 if (obj.userData.type === 'waterSurface') {
                     obj.material.opacity = 0.5 + Math.sin(time * 2) * 0.1;
+                }
+                
+                if (obj.userData.type === 'interactiveCube' && obj !== selectedObject) {
+                    obj.rotation.x += 0.005;
+                    obj.rotation.y += 0.005;
                 }
             });
 

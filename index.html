@@ -333,10 +333,9 @@
             </div>
             
             <div class="mode-controls">
-                <button class="mode-btn active" onclick="setMode('select')" id="selectMode">👆 Выбор</button>
+                <button class="mode-btn active" onclick="setMode('firstperson')" id="firstpersonMode">👁️ От первого лица</button>
                 <button class="mode-btn" onclick="setMode('move')" id="moveMode">✋ Перемещение</button>
                 <button class="mode-btn" onclick="setMode('rotate')" id="rotateMode">🔄 Вращение</button>
-                <button class="mode-btn" onclick="setMode('avatar')" id="avatarMode">👤 Аватар</button>
             </div>
             
             <div class="camera-controls">
@@ -367,10 +366,9 @@
             </div>
             
             <div class="instructions" id="instructions">
-                👆 Режим выбора: Кликните по объекту для выбора<br>
+                👁️ Режим первого лица: Вы - аватар, камера от его глаз<br>
                 ✋ Режим перемещения: Выберите объект и перетащите мышью<br>
                 🔄 Режим вращения: Выберите объект и двигайте мышью для вращения<br>
-                👤 Режим аватара: Управление вашим аватаром<br>
                 🖱️ Используйте колесо мыши для масштабирования
             </div>
             
@@ -385,7 +383,7 @@
             </div>
             
             <div style="background:rgba(0,0,0,0.5);padding:10px;border-radius:10px;margin:15px 0;font-size:0.9rem" id="sceneInfo">
-                Объектов: 0 | FPS: 60 | Режим: Выбор | Выбран: Нет | Zoom: 100% | Пользователей: 1
+                Объектов: 0 | FPS: 60 | Режим: Первое лицо | Выбран: Нет | Zoom: 100% | Пользователей: 1
             </div>
         </div>
         
@@ -417,7 +415,7 @@
 
     <script>
         let scene, camera, renderer, objects = [], objectCount = 0, selectedObject = null, raycaster, mouse, clock = new THREE.Clock();
-        let currentMode = 'select'; // 'select', 'move', 'rotate', 'avatar'
+        let currentMode = 'firstperson'; // 'firstperson', 'move', 'rotate'
         let isDragging = false;
         let previousMousePosition = { x: 0, y: 0 };
         let dragPlane = null;
@@ -428,21 +426,25 @@
         let zoomLevel = 1;
         let websiteTextures = {};
         let avatars = [];
-        let currentUser = { id: 'Avatar-0', position: new THREE.Vector3(0, 0, 0), rotation: new THREE.Vector3(0, 0, 0) };
+        let currentUser = { id: 'Avatar-0', position: new THREE.Vector3(0, 1.6, 0), rotation: new THREE.Vector3(0, 0, 0) };
         let otherUsers = [];
         let isInFullscreen = false;
         let isVRMode = false;
+        let mouseMovement = { x: 0, y: 0 };
+        let avatarVelocity = new THREE.Vector3();
 
         function init() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x0a0a2a);
             scene.fog = new THREE.Fog(0x0a0a2a, 10, 50);
 
+            // Камера от первого лица (глаза аватара)
             camera = new THREE.PerspectiveCamera(75, 
                 document.getElementById('threeContainer').clientWidth / 
                 document.getElementById('threeContainer').clientHeight, 
                 0.1, 1000);
-            updateCameraPosition();
+            camera.position.copy(currentUser.position);
+            camera.rotation.set(0, 0, 0);
 
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(
@@ -472,6 +474,15 @@
             document.addEventListener('mouseup', onMouseUp);
             document.getElementById('threeContainer').addEventListener('wheel', onMouseWheel);
             document.addEventListener('keydown', onKeyDown);
+            document.addEventListener('keyup', onKeyUp);
+
+            // Для режима первого лица
+            document.getElementById('threeContainer').addEventListener('mousemove', onFirstPersonMouseMove);
+            document.getElementById('threeContainer').addEventListener('click', function() {
+                if (currentMode === 'firstperson') {
+                    document.getElementById('threeContainer').requestPointerLock();
+                }
+            });
 
             addInitialObjects();
             createAvatar();
@@ -480,12 +491,10 @@
         }
 
         function updateCameraPosition() {
-            if (currentMode === 'avatar') {
-                // Камера следует за аватаром
+            if (currentMode === 'firstperson') {
+                // Камера находится в позиции аватара (глаза)
                 camera.position.copy(currentUser.position);
-                camera.position.y += 2;
-                camera.position.z += 5;
-                camera.lookAt(currentUser.position.x, currentUser.position.y + 1, currentUser.position.z);
+                // Высота глаз ~1.6м от пола
             } else {
                 // Обычная орбитальная камера
                 camera.position.x = cameraTarget.x + Math.sin(cameraAngle.y) * Math.cos(cameraAngle.x) * cameraDistance;
@@ -508,44 +517,49 @@
             });
             const floor = new THREE.Mesh(floorGeometry, floorMaterial);
             floor.rotation.x = -Math.PI / 2;
-            floor.position.y = -2;
+            floor.position.y = 0;
             floor.receiveShadow = true;
             scene.add(floor);
         }
 
         function createAvatar() {
-            // Создаем сферический аватар
-            const geometry = new THREE.SphereGeometry(0.5, 16, 16);
+            // Создаем сферический аватар (невидимый для себя)
+            const geometry = new THREE.SphereGeometry(0.3, 16, 16);
             const material = new THREE.MeshStandardMaterial({ 
                 color: 0x4fc3f7,
                 emissive: 0x2196f3,
-                emissiveIntensity: 0.2
+                emissiveIntensity: 0.2,
+                transparent: true,
+                opacity: 0.3 // Полупрозрачный для демонстрации
             });
             
             const avatar = new THREE.Mesh(geometry, material);
-            avatar.position.set(0, 0, 0);
-            avatar.userData = { type: 'avatar', id: currentUser.id };
+            avatar.position.copy(currentUser.position);
+            avatar.userData = { type: 'avatar', id: currentUser.id, isSelf: true };
             scene.add(avatar);
             avatars.push(avatar);
             
-            // Создаем глаза
-            const eyeGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+            // Создаем глаза (видны только другим пользователям)
+            const eyeGeometry = new THREE.SphereGeometry(0.05, 8, 8);
             const eyeMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
             
             const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
-            leftEye.position.set(-0.15, 0.1, 0.4);
+            leftEye.position.set(-0.1, 0.1, 0.25);
             avatar.add(leftEye);
             
             const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
-            rightEye.position.set(0.15, 0.1, 0.4);
+            rightEye.position.set(0.1, 0.1, 0.25);
             avatar.add(rightEye);
             
             currentUser.avatar = avatar;
             currentUser.eyes = { left: leftEye, right: rightEye };
+            
+            // Скрываем свой аватар (в реальном приложении он бы не отображался)
+            avatar.visible = false;
         }
 
         function createOtherUserAvatar(userId, position) {
-            const geometry = new THREE.SphereGeometry(0.5, 16, 16);
+            const geometry = new THREE.SphereGeometry(0.3, 16, 16);
             const colors = [0xff6b6b, 0x6bffb8, 0xffb86b];
             const randomColor = colors[otherUsers.length % colors.length];
             const material = new THREE.MeshStandardMaterial({ 
@@ -561,22 +575,23 @@
             avatars.push(avatar);
             
             // Создаем глаза
-            const eyeGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+            const eyeGeometry = new THREE.SphereGeometry(0.05, 8, 8);
             const eyeMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
             
             const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
-            leftEye.position.set(-0.15, 0.1, 0.4);
+            leftEye.position.set(-0.1, 0.1, 0.25);
             avatar.add(leftEye);
             
             const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
-            rightEye.position.set(0.15, 0.1, 0.4);
+            rightEye.position.set(0.1, 0.1, 0.25);
             avatar.add(rightEye);
             
             const user = {
                 id: userId,
                 position: position,
                 avatar: avatar,
-                eyes: { left: leftEye, right: rightEye }
+                eyes: { left: leftEye, right: rightEye },
+                lookDirection: new THREE.Vector3(1, 0, 0)
             };
             
             otherUsers.push(user);
@@ -593,7 +608,7 @@
             const userId = `Avatar-${otherUsers.length + 1}`;
             const position = new THREE.Vector3(
                 (Math.random() - 0.5) * 10,
-                0,
+                1.6,
                 (Math.random() - 0.5) * 10
             );
             
@@ -603,20 +618,28 @@
 
         function moveAvatar(direction) {
             const moveSpeed = 0.2;
+            const moveVector = new THREE.Vector3();
+            
             switch(direction) {
                 case 'forward':
-                    currentUser.position.z -= moveSpeed;
+                    moveVector.z = -moveSpeed;
                     break;
                 case 'backward':
-                    currentUser.position.z += moveSpeed;
+                    moveVector.z = moveSpeed;
                     break;
                 case 'left':
-                    currentUser.position.x -= moveSpeed;
+                    moveVector.x = -moveSpeed;
                     break;
                 case 'right':
-                    currentUser.position.x += moveSpeed;
+                    moveVector.x = moveSpeed;
                     break;
             }
+            
+            // Применяем вращение камеры к вектору движения
+            moveVector.applyQuaternion(camera.quaternion);
+            moveVector.y = 0; // Не двигаемся по вертикали
+            
+            currentUser.position.add(moveVector);
             
             if (currentUser.avatar) {
                 currentUser.avatar.position.copy(currentUser.position);
@@ -625,34 +648,66 @@
             updateCameraPosition();
         }
 
+        function onFirstPersonMouseMove(event) {
+            if (currentMode === 'firstperson' && document.pointerLockElement === document.getElementById('threeContainer')) {
+                const sensitivity = 0.002;
+                currentUser.rotation.y -= event.movementX * sensitivity;
+                currentUser.rotation.x -= event.movementY * sensitivity;
+                
+                // Ограничиваем вертикальный поворот
+                currentUser.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, currentUser.rotation.x));
+                
+                // Применяем вращение к камере
+                camera.rotation.set(currentUser.rotation.x, currentUser.rotation.y, 0, 'YXZ');
+            }
+        }
+
         function onKeyDown(event) {
-            if (currentMode === 'avatar') {
-                switch(event.key) {
+            if (currentMode === 'firstperson') {
+                switch(event.key.toLowerCase()) {
                     case 'w':
-                    case 'W':
-                    case 'ц':
-                    case 'Ц':
-                        moveAvatar('forward');
+                        avatarVelocity.z = -0.1;
                         break;
                     case 's':
-                    case 'S':
-                    case 'ы':
-                    case 'Ы':
-                        moveAvatar('backward');
+                        avatarVelocity.z = 0.1;
                         break;
                     case 'a':
-                    case 'A':
-                    case 'ф':
-                    case 'Ф':
-                        moveAvatar('left');
+                        avatarVelocity.x = -0.1;
                         break;
                     case 'd':
-                    case 'D':
-                    case 'в':
-                    case 'В':
-                        moveAvatar('right');
+                        avatarVelocity.x = 0.1;
                         break;
                 }
+            }
+        }
+
+        function onKeyUp(event) {
+            if (currentMode === 'firstperson') {
+                switch(event.key.toLowerCase()) {
+                    case 'w':
+                    case 's':
+                        avatarVelocity.z = 0;
+                        break;
+                    case 'a':
+                    case 'd':
+                        avatarVelocity.x = 0;
+                        break;
+                }
+            }
+        }
+
+        function updateAvatarPosition() {
+            if (currentMode === 'firstperson' && (avatarVelocity.x !== 0 || avatarVelocity.z !== 0)) {
+                const moveVector = avatarVelocity.clone();
+                moveVector.applyQuaternion(camera.quaternion);
+                moveVector.y = 0;
+                currentUser.position.add(moveVector);
+                
+                if (currentUser.avatar) {
+                    currentUser.avatar.position.copy(currentUser.position);
+                }
+                
+                updateCameraPosition();
             }
         }
 
@@ -695,7 +750,7 @@
             });
 
             const websitePlane = new THREE.Mesh(geometry, material);
-            websitePlane.position.set(-8 + objectCount * 2, 3, -3 + objectCount);
+            websitePlane.position.set(-8 + objectCount * 2, 2, -3 + objectCount);
             websitePlane.rotation.y = Math.PI / 8;
             websitePlane.castShadow = true;
             websitePlane.userData = { 
@@ -875,7 +930,7 @@
             });
 
             const sphere = new THREE.Mesh(geometry, material);
-            sphere.position.set(0, 2, -5 + objectCount);
+            sphere.position.set(0, 1.5, -5 + objectCount);
             sphere.castShadow = true;
             sphere.userData = { type: 'vrSphere', id: objectCount };
 
@@ -897,7 +952,7 @@
             });
 
             const water = new THREE.Mesh(geometry, material);
-            water.position.set(5 - objectCount, 0, 0);
+            water.position.set(5 - objectCount, 0.1, 0);
             water.rotation.x = -Math.PI / 2;
             water.userData = { type: 'waterSurface', id: objectCount };
 
@@ -908,7 +963,7 @@
         }
 
         function addInteractiveCube() {
-            const geometry = new THREE.BoxGeometry(2, 2, 2);
+            const geometry = new THREE.BoxGeometry(1, 1, 1);
             const material = new THREE.MeshStandardMaterial({ 
                 color: 0x9c27b0,
                 emissive: 0x7b1fa2,
@@ -918,7 +973,7 @@
             });
 
             const cube = new THREE.Mesh(geometry, material);
-            cube.position.set(-3 + objectCount, 3, 3 + objectCount);
+            cube.position.set(-3 + objectCount, 1, 3 + objectCount);
             cube.castShadow = true;
             cube.userData = { type: 'interactiveCube', id: objectCount };
 
@@ -932,37 +987,41 @@
             currentMode = mode;
             
             // Обновляем кнопки режимов
-            document.getElementById('selectMode').classList.remove('active');
+            document.getElementById('firstpersonMode').classList.remove('active');
             document.getElementById('moveMode').classList.remove('active');
             document.getElementById('rotateMode').classList.remove('active');
-            document.getElementById('avatarMode').classList.remove('active');
             
             switch(mode) {
-                case 'select':
-                    document.getElementById('selectMode').classList.add('active');
+                case 'firstperson':
+                    document.getElementById('firstpersonMode').classList.add('active');
+                    document.getElementById('navControls').classList.remove('hidden');
+                    // Выходим из pointer lock при смене режима
+                    if (document.pointerLockElement) {
+                        document.exitPointerLock();
+                    }
                     break;
                 case 'move':
                     document.getElementById('moveMode').classList.add('active');
+                    document.getElementById('navControls').classList.add('hidden');
+                    if (document.pointerLockElement) {
+                        document.exitPointerLock();
+                    }
                     break;
                 case 'rotate':
                     document.getElementById('rotateMode').classList.add('active');
+                    document.getElementById('navControls').classList.add('hidden');
+                    if (document.pointerLockElement) {
+                        document.exitPointerLock();
+                    }
                     break;
-                case 'avatar':
-                    document.getElementById('avatarMode').classList.add('active');
-                    break;
-            }
-            
-            // Показываем/скрываем элементы управления в зависимости от режима
-            if (mode === 'avatar') {
-                document.getElementById('navControls').classList.remove('hidden');
-            } else {
-                document.getElementById('navControls').classList.add('hidden');
             }
             
             updateSceneInfo();
         }
 
         function onMouseDown(event) {
+            if (currentMode === 'firstperson') return;
+            
             const rect = renderer.domElement.getBoundingClientRect();
             mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
             mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -974,13 +1033,8 @@
             if (intersects.length > 0) {
                 const object = intersects[0].object;
                 
-                // Если объект прикреплен к другому объекту (например, текст), выбираем основной объект
-                const mainObject = object.userData.attachedTo || object;
-                
-                if (currentMode === 'select') {
-                    selectObject(mainObject);
-                } else if (currentMode === 'move' || currentMode === 'rotate') {
-                    selectObject(mainObject);
+                if (currentMode === 'move' || currentMode === 'rotate') {
+                    selectObject(object);
                     isDragging = true;
                     previousMousePosition = { x: event.clientX, y: event.clientY };
                     
@@ -988,34 +1042,34 @@
                     if (currentMode === 'move') {
                         dragPlane.setFromNormalAndCoplanarPoint(
                             camera.getWorldDirection(new THREE.Vector3()),
-                            mainObject.position
+                            object.position
                         );
                     }
                 }
 
                 // Анимация взаимодействия
-                mainObject.scale.set(1.1, 1.1, 1.1);
+                object.scale.set(1.1, 1.1, 1.1);
                 setTimeout(() => {
-                    if (mainObject) mainObject.scale.set(1, 1, 1);
+                    if (object) object.scale.set(1, 1, 1);
                 }, 100);
                 
                 // Если это сайт, показываем информацию
-                if (mainObject.userData.type === 'website') {
-                    updateLoadingIndicator('Выбран сайт: ' + getDomainFromUrl(mainObject.userData.url));
+                if (object.userData.type === 'website') {
+                    updateLoadingIndicator('Выбран сайт: ' + getDomainFromUrl(object.userData.url));
                 }
             } else {
-                if (currentMode === 'select') {
+                if (currentMode === 'move' || currentMode === 'rotate') {
                     deselectObject();
                 }
-                // Если кликнули по пустому пространству, начинаем вращение камеры (только если не в режиме аватара)
-                if (currentMode !== 'avatar') {
-                    isDragging = true;
-                    previousMousePosition = { x: event.clientX, y: event.clientY };
-                }
+                // Если кликнули по пустому пространству, начинаем вращение камеры
+                isDragging = true;
+                previousMousePosition = { x: event.clientX, y: event.clientY };
             }
         }
 
         function onMouseMove(event) {
+            if (currentMode === 'firstperson') return;
+            
             if (isDragging) {
                 const deltaX = event.clientX - previousMousePosition.x;
                 const deltaY = event.clientY - previousMousePosition.y;
@@ -1033,22 +1087,13 @@
                         const intersection = new THREE.Vector3();
                         if (raycaster.ray.intersectPlane(dragPlane, intersection)) {
                             selectedObject.position.copy(intersection);
-                            
-                            // Обновляем позицию прикрепленных объектов
-                            objects.forEach(obj => {
-                                if (obj.userData.attachedTo === selectedObject) {
-                                    obj.position.x = selectedObject.position.x;
-                                    obj.position.y = selectedObject.position.y - 2;
-                                    obj.position.z = selectedObject.position.z;
-                                }
-                            });
                         }
                     } else if (currentMode === 'rotate') {
                         selectedObject.rotation.y += deltaX * 0.01;
                         selectedObject.rotation.x += deltaY * 0.01;
                         selectedObject.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, selectedObject.rotation.x));
                     }
-                } else if (!selectedObject && currentMode !== 'avatar') {
+                } else if (!selectedObject) {
                     // Вращение камеры
                     cameraAngle.y -= deltaX * 0.01;
                     cameraAngle.x -= deltaY * 0.01;
@@ -1066,33 +1111,50 @@
 
         function onMouseWheel(event) {
             event.preventDefault();
-            zoomLevel += event.deltaY * -0.001;
-            zoomLevel = Math.max(0.1, Math.min(zoomLevel, 5));
-            cameraDistance = 15 / zoomLevel;
-            updateCameraPosition();
-            updateSceneInfo();
+            if (currentMode !== 'firstperson') {
+                zoomLevel += event.deltaY * -0.001;
+                zoomLevel = Math.max(0.1, Math.min(zoomLevel, 5));
+                cameraDistance = 15 / zoomLevel;
+                updateCameraPosition();
+                updateSceneInfo();
+            }
         }
 
         function zoomIn() {
-            zoomLevel = Math.min(zoomLevel + 0.2, 5);
-            cameraDistance = 15 / zoomLevel;
-            updateCameraPosition();
-            updateSceneInfo();
+            if (currentMode !== 'firstperson') {
+                zoomLevel = Math.min(zoomLevel + 0.2, 5);
+                cameraDistance = 15 / zoomLevel;
+                updateCameraPosition();
+                updateSceneInfo();
+            }
         }
 
         function zoomOut() {
-            zoomLevel = Math.max(zoomLevel - 0.2, 0.1);
-            cameraDistance = 15 / zoomLevel;
-            updateCameraPosition();
-            updateSceneInfo();
+            if (currentMode !== 'firstperson') {
+                zoomLevel = Math.max(zoomLevel - 0.2, 0.1);
+                cameraDistance = 15 / zoomLevel;
+                updateCameraPosition();
+                updateSceneInfo();
+            }
         }
 
         function resetCamera() {
-            cameraDistance = 15;
-            cameraAngle = { x: 0, y: 0 };
-            zoomLevel = 1;
-            updateCameraPosition();
-            updateSceneInfo();
+            if (currentMode !== 'firstperson') {
+                cameraDistance = 15;
+                cameraAngle = { x: 0, y: 0 };
+                zoomLevel = 1;
+                updateCameraPosition();
+                updateSceneInfo();
+            } else {
+                // Сброс позиции аватара
+                currentUser.position.set(0, 1.6, 0);
+                currentUser.rotation.set(0, 0, 0);
+                camera.position.copy(currentUser.position);
+                camera.rotation.set(0, 0, 0);
+                if (currentUser.avatar) {
+                    currentUser.avatar.position.copy(currentUser.position);
+                }
+            }
         }
 
         function toggleFullscreen() {
@@ -1182,7 +1244,8 @@
             if (currentUser.avatar) {
                 scene.remove(currentUser.avatar);
             }
-            currentUser.position.set(0, 0, 0);
+            currentUser.position.set(0, 1.6, 0);
+            currentUser.rotation.set(0, 0, 0);
             createAvatar();
 
             addInitialObjects();
@@ -1196,10 +1259,9 @@
             const infoElement = document.getElementById('sceneInfo');
             const fps = Math.round(1 / clock.getDelta());
             const modeText = {
-                'select': 'Выбор',
+                'firstperson': 'Первое лицо',
                 'move': 'Перемещение',
-                'rotate': 'Вращение',
-                'avatar': 'Аватар'
+                'rotate': 'Вращение'
             };
             const selectedText = selectedObject ? `${selectedObject.userData.type} #${selectedObject.userData.id}` : 'Нет';
             const zoomPercent = Math.round(zoomLevel * 100);
@@ -1211,11 +1273,6 @@
             const indicator = document.getElementById('loadingIndicator');
             indicator.textContent = message;
             indicator.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-            
-            // Если сообщение об ошибке, делаем красный фон
-            if (message.includes('Ошибка') || message.includes('ошибка')) {
-                indicator.style.backgroundColor = 'rgba(255, 0, 0, 0.7)';
-            }
         }
 
         function updateHUD() {
@@ -1263,7 +1320,7 @@
             objects.forEach((obj, index) => {
                 if (obj.userData.type === 'vrSphere' && obj !== selectedObject) {
                     obj.rotation.y += 0.01;
-                    obj.position.y = 2 + Math.sin(time + index) * 0.2;
+                    obj.position.y = 1.5 + Math.sin(time + index) * 0.1;
                 }
 
                 if (obj.userData.type === 'waterSurface') {
@@ -1279,43 +1336,25 @@
             // Анимация аватаров других пользователей
             otherUsers.forEach((user, index) => {
                 // Плавное движение
-                user.position.x += Math.sin(time + index) * 0.01;
-                user.position.z += Math.cos(time + index) * 0.01;
+                user.position.x += Math.sin(time * 0.5 + index) * 0.01;
+                user.position.z += Math.cos(time * 0.5 + index) * 0.01;
                 user.avatar.position.copy(user.position);
                 
-                // Вращение глаз в сторону текущего пользователя
-                if (currentUser.avatar) {
-                    const direction = new THREE.Vector3();
-                    direction.subVectors(currentUser.avatar.position, user.avatar.position).normalize();
-                    
-                    // Упрощенное направление взгляда
-                    user.eyes.left.lookAt(direction);
-                    user.eyes.right.lookAt(direction);
-                }
+                // Вращение в сторону случайной точки (имитация взгляда)
+                const lookTarget = new THREE.Vector3(
+                    Math.sin(time * 0.3 + index) * 5,
+                    1.6,
+                    Math.cos(time * 0.3 + index) * 5
+                );
+                
+                user.avatar.lookAt(lookTarget);
+                
+                // Обновляем направление взгляда
+                user.lookDirection.subVectors(lookTarget, user.avatar.position).normalize();
             });
             
-            // Анимация глаз текущего пользователя (смотрят на ближайший объект)
-            if (currentUser.eyes && objects.length > 0) {
-                let closestObject = null;
-                let minDistance = Infinity;
-                
-                objects.forEach(obj => {
-                    if (obj.userData.type !== 'floatingText') {
-                        const distance = currentUser.avatar.position.distanceTo(obj.position);
-                        if (distance < minDistance) {
-                            minDistance = distance;
-                            closestObject = obj;
-                        }
-                    }
-                });
-                
-                if (closestObject) {
-                    const direction = new THREE.Vector3();
-                    direction.subVectors(closestObject.position, currentUser.avatar.position).normalize();
-                    currentUser.eyes.left.lookAt(direction);
-                    currentUser.eyes.right.lookAt(direction);
-                }
-            }
+            // Обновляем позицию аватара при непрерывном движении
+            updateAvatarPosition();
 
             updateCameraPosition();
             renderer.render(scene, camera);

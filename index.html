@@ -79,6 +79,7 @@
             border: 2px solid rgba(79, 195, 247, 0.3);
             position: relative;
             cursor: grab;
+            overflow: hidden;
         }
         
         .three-container:active {
@@ -203,6 +204,73 @@
             padding: 5px 10px;
             border-radius: 10px;
             font-size: 0.8rem;
+            z-index: 100;
+        }
+        
+        .hud {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 10px;
+            z-index: 100;
+            font-size: 0.9rem;
+        }
+        
+        .avatar-info {
+            margin: 5px 0;
+            font-size: 0.8rem;
+        }
+        
+        .avatar-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        
+        .avatar-online {
+            background: #4caf50;
+        }
+        
+        .avatar-offline {
+            background: #f44336;
+        }
+        
+        .fullscreen-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 100;
+        }
+        
+        .navigation-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 10px;
+            z-index: 100;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .nav-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+        
+        .hidden {
+            display: none;
         }
         
         @media (max-width: 768px) {
@@ -221,6 +289,10 @@
             .url-input input {
                 width: 200px;
             }
+            
+            .container {
+                padding: 10px;
+            }
         }
     </style>
 </head>
@@ -228,27 +300,27 @@
     <div class="container">
         <header>
             <h1>🌐 VR Browser 3D</h1>
-            <p class="subtitle">Инновационный 3D-браузер для виртуальной реальности. Демонстрация возможностей с Three.js</p>
+            <p class="subtitle">Инновационный 3D-браузер для виртуальной реальности. Многопользовательская демонстрация</p>
         </header>
         
         <div class="stats">
-            <div class="stat-item"><div class="stat-number">2D/3D</div><div>Сайты в VR</div></div>
-            <div class="stat-item"><div class="stat-number">∞</div><div>Виртуальные миры</div></div>
-            <div class="stat-item"><div class="stat-number">🎮</div><div>Интерактивность</div></div>
+            <div class="stat-item"><div class="stat-number">👥 3</div><div>Максимум пользователей</div></div>
+            <div class="stat-item"><div class="stat-number">🔊</div><div>Голосовой чат</div></div>
+            <div class="stat-item"><div class="stat-number">🎮</div><div>VR/ПК режимы</div></div>
         </div>
         
         <div class="features-grid">
             <div class="feature-card">
-                <h3>🌐 2D Сайты в 3D</h3>
-                <p>Обычные веб-страницы в трехмерном пространстве с возможностью размещения на поверхностях.</p>
+                <h3>👥 Многопользовательский режим</h3>
+                <p>До 3 пользователей одновременно в одном виртуальном пространстве с голосовым чатом.</p>
             </div>
             <div class="feature-card">
-                <h3>🌀 VR Сферы</h3>
-                <p>Интерактивные 3D/VR сайты в виде сфер, в которые можно "войти" для погружения.</p>
+                <h3>🤖 Аватары</h3>
+                <p>Сферические аватары с глазами, отслеживающими направление взгляда других пользователей.</p>
             </div>
             <div class="feature-card">
-                <h3>🌍 Личный Мир</h3>
-                <p>Каждый пользователь получает свой виртуальный мир для организации контента.</p>
+                <h3>📱 Режимы отображения</h3>
+                <p>Полноэкранный режим для ПК и VR-режим для мобильных устройств.</p>
             </div>
         </div>
         
@@ -264,22 +336,41 @@
                 <button class="mode-btn active" onclick="setMode('select')" id="selectMode">👆 Выбор</button>
                 <button class="mode-btn" onclick="setMode('move')" id="moveMode">✋ Перемещение</button>
                 <button class="mode-btn" onclick="setMode('rotate')" id="rotateMode">🔄 Вращение</button>
+                <button class="mode-btn" onclick="setMode('avatar')" id="avatarMode">👤 Аватар</button>
             </div>
             
             <div class="camera-controls">
                 <button onclick="zoomIn()">🔍 Приблизить</button>
                 <button onclick="zoomOut()">🔎 Отдалить</button>
                 <button onclick="resetCamera()">🔄 Сброс камеры</button>
+                <button onclick="toggleFullscreen()">🖥️ Полный экран</button>
+                <button onclick="simulateUserJoin()">👥 Добавить пользователя</button>
             </div>
             
             <div class="three-container" id="threeContainer">
                 <div class="loading-indicator" id="loadingIndicator">Готов к работе</div>
+                <div class="hud hidden" id="hud">
+                    <div>Пользователи онлайн: <span id="onlineCount">1</span>/3</div>
+                    <div class="avatar-info"><span class="avatar-indicator avatar-online"></span>Вы (Avatar-0)</div>
+                    <div id="otherUsers"></div>
+                    <div>🔊 Голосовой чат: <span id="voiceStatus">Активен</span></div>
+                </div>
+                <div class="fullscreen-btn hidden" id="exitFullscreenBtn">
+                    <button onclick="exitFullscreen()" style="padding: 5px 10px; font-size: 12px;">✖️ Выйти</button>
+                </div>
+                <div class="navigation-controls hidden" id="navControls">
+                    <button class="nav-btn" onclick="moveAvatar('forward')">⬆️</button>
+                    <button class="nav-btn" onclick="moveAvatar('backward')">⬇️</button>
+                    <button class="nav-btn" onclick="moveAvatar('left')">⬅️</button>
+                    <button class="nav-btn" onclick="moveAvatar('right')">➡️</button>
+                </div>
             </div>
             
             <div class="instructions" id="instructions">
                 👆 Режим выбора: Кликните по объекту для выбора<br>
                 ✋ Режим перемещения: Выберите объект и перетащите мышью<br>
                 🔄 Режим вращения: Выберите объект и двигайте мышью для вращения<br>
+                👤 Режим аватара: Управление вашим аватаром<br>
                 🖱️ Используйте колесо мыши для масштабирования
             </div>
             
@@ -294,7 +385,7 @@
             </div>
             
             <div style="background:rgba(0,0,0,0.5);padding:10px;border-radius:10px;margin:15px 0;font-size:0.9rem" id="sceneInfo">
-                Объектов: 0 | FPS: 60 | Режим: Выбор | Выбран: Нет | Zoom: 100%
+                Объектов: 0 | FPS: 60 | Режим: Выбор | Выбран: Нет | Zoom: 100% | Пользователей: 1
             </div>
         </div>
         
@@ -326,7 +417,7 @@
 
     <script>
         let scene, camera, renderer, objects = [], objectCount = 0, selectedObject = null, raycaster, mouse, clock = new THREE.Clock();
-        let currentMode = 'select'; // 'select', 'move', 'rotate'
+        let currentMode = 'select'; // 'select', 'move', 'rotate', 'avatar'
         let isDragging = false;
         let previousMousePosition = { x: 0, y: 0 };
         let dragPlane = null;
@@ -336,6 +427,11 @@
         let cameraAngle = { x: 0, y: 0 };
         let zoomLevel = 1;
         let websiteTextures = {};
+        let avatars = [];
+        let currentUser = { id: 'Avatar-0', position: new THREE.Vector3(0, 0, 0), rotation: new THREE.Vector3(0, 0, 0) };
+        let otherUsers = [];
+        let isInFullscreen = false;
+        let isVRMode = false;
 
         function init() {
             scene = new THREE.Scene();
@@ -375,17 +471,28 @@
             document.addEventListener('mousemove', onMouseMove);
             document.addEventListener('mouseup', onMouseUp);
             document.getElementById('threeContainer').addEventListener('wheel', onMouseWheel);
+            document.addEventListener('keydown', onKeyDown);
 
             addInitialObjects();
+            createAvatar();
 
             animate();
         }
 
         function updateCameraPosition() {
-            camera.position.x = cameraTarget.x + Math.sin(cameraAngle.y) * Math.cos(cameraAngle.x) * cameraDistance;
-            camera.position.y = cameraTarget.y + Math.sin(cameraAngle.x) * cameraDistance;
-            camera.position.z = cameraTarget.z + Math.cos(cameraAngle.y) * Math.cos(cameraAngle.x) * cameraDistance;
-            camera.lookAt(cameraTarget);
+            if (currentMode === 'avatar') {
+                // Камера следует за аватаром
+                camera.position.copy(currentUser.position);
+                camera.position.y += 2;
+                camera.position.z += 5;
+                camera.lookAt(currentUser.position.x, currentUser.position.y + 1, currentUser.position.z);
+            } else {
+                // Обычная орбитальная камера
+                camera.position.x = cameraTarget.x + Math.sin(cameraAngle.y) * Math.cos(cameraAngle.x) * cameraDistance;
+                camera.position.y = cameraTarget.y + Math.sin(cameraAngle.x) * cameraDistance;
+                camera.position.z = cameraTarget.z + Math.cos(cameraAngle.y) * Math.cos(cameraAngle.x) * cameraDistance;
+                camera.lookAt(cameraTarget);
+            }
         }
 
         function addInitialObjects() {
@@ -404,6 +511,149 @@
             floor.position.y = -2;
             floor.receiveShadow = true;
             scene.add(floor);
+        }
+
+        function createAvatar() {
+            // Создаем сферический аватар
+            const geometry = new THREE.SphereGeometry(0.5, 16, 16);
+            const material = new THREE.MeshStandardMaterial({ 
+                color: 0x4fc3f7,
+                emissive: 0x2196f3,
+                emissiveIntensity: 0.2
+            });
+            
+            const avatar = new THREE.Mesh(geometry, material);
+            avatar.position.set(0, 0, 0);
+            avatar.userData = { type: 'avatar', id: currentUser.id };
+            scene.add(avatar);
+            avatars.push(avatar);
+            
+            // Создаем глаза
+            const eyeGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+            const eyeMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
+            
+            const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+            leftEye.position.set(-0.15, 0.1, 0.4);
+            avatar.add(leftEye);
+            
+            const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+            rightEye.position.set(0.15, 0.1, 0.4);
+            avatar.add(rightEye);
+            
+            currentUser.avatar = avatar;
+            currentUser.eyes = { left: leftEye, right: rightEye };
+        }
+
+        function createOtherUserAvatar(userId, position) {
+            const geometry = new THREE.SphereGeometry(0.5, 16, 16);
+            const colors = [0xff6b6b, 0x6bffb8, 0xffb86b];
+            const randomColor = colors[otherUsers.length % colors.length];
+            const material = new THREE.MeshStandardMaterial({ 
+                color: randomColor,
+                emissive: new THREE.Color(randomColor).multiplyScalar(0.5),
+                emissiveIntensity: 0.2
+            });
+            
+            const avatar = new THREE.Mesh(geometry, material);
+            avatar.position.copy(position);
+            avatar.userData = { type: 'otherAvatar', id: userId };
+            scene.add(avatar);
+            avatars.push(avatar);
+            
+            // Создаем глаза
+            const eyeGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+            const eyeMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
+            
+            const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+            leftEye.position.set(-0.15, 0.1, 0.4);
+            avatar.add(leftEye);
+            
+            const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+            rightEye.position.set(0.15, 0.1, 0.4);
+            avatar.add(rightEye);
+            
+            const user = {
+                id: userId,
+                position: position,
+                avatar: avatar,
+                eyes: { left: leftEye, right: rightEye }
+            };
+            
+            otherUsers.push(user);
+            updateHUD();
+            return user;
+        }
+
+        function simulateUserJoin() {
+            if (otherUsers.length >= 2) {
+                alert('Достигнуто максимальное количество пользователей (3)');
+                return;
+            }
+            
+            const userId = `Avatar-${otherUsers.length + 1}`;
+            const position = new THREE.Vector3(
+                (Math.random() - 0.5) * 10,
+                0,
+                (Math.random() - 0.5) * 10
+            );
+            
+            createOtherUserAvatar(userId, position);
+            updateLoadingIndicator(`Пользователь ${userId} присоединился`);
+        }
+
+        function moveAvatar(direction) {
+            const moveSpeed = 0.2;
+            switch(direction) {
+                case 'forward':
+                    currentUser.position.z -= moveSpeed;
+                    break;
+                case 'backward':
+                    currentUser.position.z += moveSpeed;
+                    break;
+                case 'left':
+                    currentUser.position.x -= moveSpeed;
+                    break;
+                case 'right':
+                    currentUser.position.x += moveSpeed;
+                    break;
+            }
+            
+            if (currentUser.avatar) {
+                currentUser.avatar.position.copy(currentUser.position);
+            }
+            
+            updateCameraPosition();
+        }
+
+        function onKeyDown(event) {
+            if (currentMode === 'avatar') {
+                switch(event.key) {
+                    case 'w':
+                    case 'W':
+                    case 'ц':
+                    case 'Ц':
+                        moveAvatar('forward');
+                        break;
+                    case 's':
+                    case 'S':
+                    case 'ы':
+                    case 'Ы':
+                        moveAvatar('backward');
+                        break;
+                    case 'a':
+                    case 'A':
+                    case 'ф':
+                    case 'Ф':
+                        moveAvatar('left');
+                        break;
+                    case 'd':
+                    case 'D':
+                    case 'в':
+                    case 'В':
+                        moveAvatar('right');
+                        break;
+                }
+            }
         }
 
         function addWebsiteToScene() {
@@ -460,23 +710,60 @@
             updateSceneInfo();
             objectCount++;
 
-            // Добавляем текст с URL
-            const textTexture = createURLTexture(url);
-            const textMaterial = new THREE.MeshBasicMaterial({ 
-                map: textTexture,
+            // Добавляем текст с URL (без подложки)
+            createFloatingText(url, websitePlane.position.x, websitePlane.position.y - 2, websitePlane.position.z);
+
+            updateLoadingIndicator('Объект создан');
+            setTimeout(() => updateLoadingIndicator('Готов к работе'), 2000);
+        }
+
+        function createFloatingText(text, x, y, z) {
+            // Создаем текст без подложки
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 512;
+            canvas.height = 128;
+            
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.font = '24px Arial';
+            ctx.textAlign = 'center';
+            
+            // Разбиваем текст на строки
+            const words = text.split(' ');
+            let line = '';
+            let lines = [];
+            const maxWidth = 400;
+            
+            for (let i = 0; i < words.length; i++) {
+                const testLine = line + words[i] + ' ';
+                const metrics = ctx.measureText(testLine);
+                if (metrics.width > maxWidth && i > 0) {
+                    lines.push(line);
+                    line = words[i] + ' ';
+                } else {
+                    line = testLine;
+                }
+            }
+            lines.push(line);
+            
+            // Рисуем текст
+            lines.forEach((line, index) => {
+                ctx.fillText(line.trim(), canvas.width/2, 40 + index * 30);
+            });
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            const material = new THREE.MeshBasicMaterial({ 
+                map: texture,
                 transparent: true,
                 side: THREE.DoubleSide
             });
             
-            const textGeometry = new THREE.PlaneGeometry(4, 0.5);
-            const textMesh = new THREE.Mesh(textGeometry, textMaterial);
-            textMesh.position.set(websitePlane.position.x, websitePlane.position.y - 2, websitePlane.position.z);
-            textMesh.userData = { attachedTo: websitePlane };
+            const geometry = new THREE.PlaneGeometry(4, 1);
+            const textMesh = new THREE.Mesh(geometry, material);
+            textMesh.position.set(x, y, z);
+            textMesh.userData = { type: 'floatingText' };
             scene.add(textMesh);
             objects.push(textMesh);
-            
-            updateLoadingIndicator('Объект создан');
-            setTimeout(() => updateLoadingIndicator('Готов к работе'), 2000);
         }
 
         function createWebsiteTexture(url) {
@@ -529,24 +816,6 @@
             ctx.beginPath();
             ctx.arc(canvas.width - 30, 40, 8, 0, 2 * Math.PI);
             ctx.fill();
-            
-            const texture = new THREE.CanvasTexture(canvas);
-            return texture;
-        }
-
-        function createURLTexture(url) {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            canvas.width = 256;
-            canvas.height = 64;
-            
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            ctx.fillStyle = 'white';
-            ctx.font = '14px Arial';
-            ctx.fillText('Сайт: ' + getDomainFromUrl(url), 10, 25);
-            ctx.fillText('Статус: Загружен', 10, 45);
             
             const texture = new THREE.CanvasTexture(canvas);
             return texture;
@@ -666,6 +935,7 @@
             document.getElementById('selectMode').classList.remove('active');
             document.getElementById('moveMode').classList.remove('active');
             document.getElementById('rotateMode').classList.remove('active');
+            document.getElementById('avatarMode').classList.remove('active');
             
             switch(mode) {
                 case 'select':
@@ -677,6 +947,16 @@
                 case 'rotate':
                     document.getElementById('rotateMode').classList.add('active');
                     break;
+                case 'avatar':
+                    document.getElementById('avatarMode').classList.add('active');
+                    break;
+            }
+            
+            // Показываем/скрываем элементы управления в зависимости от режима
+            if (mode === 'avatar') {
+                document.getElementById('navControls').classList.remove('hidden');
+            } else {
+                document.getElementById('navControls').classList.add('hidden');
             }
             
             updateSceneInfo();
@@ -727,9 +1007,11 @@
                 if (currentMode === 'select') {
                     deselectObject();
                 }
-                // Если кликнули по пустому пространству, начинаем вращение камеры
-                isDragging = true;
-                previousMousePosition = { x: event.clientX, y: event.clientY };
+                // Если кликнули по пустому пространству, начинаем вращение камеры (только если не в режиме аватара)
+                if (currentMode !== 'avatar') {
+                    isDragging = true;
+                    previousMousePosition = { x: event.clientX, y: event.clientY };
+                }
             }
         }
 
@@ -766,7 +1048,7 @@
                         selectedObject.rotation.x += deltaY * 0.01;
                         selectedObject.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, selectedObject.rotation.x));
                     }
-                } else if (!selectedObject) {
+                } else if (!selectedObject && currentMode !== 'avatar') {
                     // Вращение камеры
                     cameraAngle.y -= deltaX * 0.01;
                     cameraAngle.x -= deltaY * 0.01;
@@ -813,6 +1095,50 @@
             updateSceneInfo();
         }
 
+        function toggleFullscreen() {
+            const container = document.getElementById('threeContainer');
+            
+            if (!isInFullscreen) {
+                if (container.requestFullscreen) {
+                    container.requestFullscreen();
+                } else if (container.webkitRequestFullscreen) {
+                    container.webkitRequestFullscreen();
+                } else if (container.msRequestFullscreen) {
+                    container.msRequestFullscreen();
+                }
+                
+                isInFullscreen = true;
+                document.getElementById('hud').classList.remove('hidden');
+                document.getElementById('exitFullscreenBtn').classList.remove('hidden');
+                
+                // Проверяем, мобильное ли устройство
+                if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+                    isVRMode = true;
+                    updateLoadingIndicator('VR режим активирован');
+                } else {
+                    updateLoadingIndicator('Полноэкранный режим активирован');
+                }
+            } else {
+                exitFullscreen();
+            }
+        }
+
+        function exitFullscreen() {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+            } else if (document.msExitFullscreen) {
+                document.msExitFullscreen();
+            }
+            
+            isInFullscreen = false;
+            isVRMode = false;
+            document.getElementById('hud').classList.add('hidden');
+            document.getElementById('exitFullscreenBtn').classList.add('hidden');
+            updateLoadingIndicator('Выход из полноэкранного режима');
+        }
+
         function selectObject(object) {
             if (selectedObject) {
                 selectedObject.material.emissiveIntensity = 
@@ -846,9 +1172,23 @@
             objectCount = 0;
             selectedObject = null;
 
+            // Удаляем других пользователей
+            otherUsers.forEach(user => {
+                scene.remove(user.avatar);
+            });
+            otherUsers = [];
+            
+            // Пересоздаем аватар текущего пользователя
+            if (currentUser.avatar) {
+                scene.remove(currentUser.avatar);
+            }
+            currentUser.position.set(0, 0, 0);
+            createAvatar();
+
             addInitialObjects();
             resetCamera();
             updateSceneInfo();
+            updateHUD();
             updateLoadingIndicator('Сцена сброшена');
         }
 
@@ -858,11 +1198,13 @@
             const modeText = {
                 'select': 'Выбор',
                 'move': 'Перемещение',
-                'rotate': 'Вращение'
+                'rotate': 'Вращение',
+                'avatar': 'Аватар'
             };
             const selectedText = selectedObject ? `${selectedObject.userData.type} #${selectedObject.userData.id}` : 'Нет';
             const zoomPercent = Math.round(zoomLevel * 100);
-            infoElement.innerHTML = `Объектов: ${objects.length - 1} | FPS: ${fps} | Режим: ${modeText[currentMode]} | Выбран: ${selectedText} | Zoom: ${zoomPercent}%`;
+            const userCount = 1 + otherUsers.length;
+            infoElement.innerHTML = `Объектов: ${objects.length} | FPS: ${fps} | Режим: ${modeText[currentMode]} | Выбран: ${selectedText} | Zoom: ${zoomPercent}% | Пользователей: ${userCount}`;
         }
 
         function updateLoadingIndicator(message) {
@@ -871,9 +1213,23 @@
             indicator.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
             
             // Если сообщение об ошибке, делаем красный фон
-            if (message.includes('Ошибка') || message.includes('Ошибка')) {
+            if (message.includes('Ошибка') || message.includes('ошибка')) {
                 indicator.style.backgroundColor = 'rgba(255, 0, 0, 0.7)';
             }
+        }
+
+        function updateHUD() {
+            document.getElementById('onlineCount').textContent = 1 + otherUsers.length;
+            
+            const otherUsersDiv = document.getElementById('otherUsers');
+            otherUsersDiv.innerHTML = '';
+            
+            otherUsers.forEach(user => {
+                const userDiv = document.createElement('div');
+                userDiv.className = 'avatar-info';
+                userDiv.innerHTML = `<span class="avatar-indicator avatar-online"></span>${user.id}`;
+                otherUsersDiv.appendChild(userDiv);
+            });
         }
 
         function showInterestForm() {
@@ -902,6 +1258,8 @@
             requestAnimationFrame(animate);
 
             const time = Date.now() * 0.001;
+            
+            // Анимация объектов
             objects.forEach((obj, index) => {
                 if (obj.userData.type === 'vrSphere' && obj !== selectedObject) {
                     obj.rotation.y += 0.01;
@@ -917,10 +1275,62 @@
                     obj.rotation.y += 0.005;
                 }
             });
+            
+            // Анимация аватаров других пользователей
+            otherUsers.forEach((user, index) => {
+                // Плавное движение
+                user.position.x += Math.sin(time + index) * 0.01;
+                user.position.z += Math.cos(time + index) * 0.01;
+                user.avatar.position.copy(user.position);
+                
+                // Вращение глаз в сторону текущего пользователя
+                if (currentUser.avatar) {
+                    const direction = new THREE.Vector3();
+                    direction.subVectors(currentUser.avatar.position, user.avatar.position).normalize();
+                    
+                    // Упрощенное направление взгляда
+                    user.eyes.left.lookAt(direction);
+                    user.eyes.right.lookAt(direction);
+                }
+            });
+            
+            // Анимация глаз текущего пользователя (смотрят на ближайший объект)
+            if (currentUser.eyes && objects.length > 0) {
+                let closestObject = null;
+                let minDistance = Infinity;
+                
+                objects.forEach(obj => {
+                    if (obj.userData.type !== 'floatingText') {
+                        const distance = currentUser.avatar.position.distanceTo(obj.position);
+                        if (distance < minDistance) {
+                            minDistance = distance;
+                            closestObject = obj;
+                        }
+                    }
+                });
+                
+                if (closestObject) {
+                    const direction = new THREE.Vector3();
+                    direction.subVectors(closestObject.position, currentUser.avatar.position).normalize();
+                    currentUser.eyes.left.lookAt(direction);
+                    currentUser.eyes.right.lookAt(direction);
+                }
+            }
 
+            updateCameraPosition();
             renderer.render(scene, camera);
             updateSceneInfo();
         }
+
+        // Обработчик выхода из полноэкранного режима
+        document.addEventListener('fullscreenchange', function() {
+            if (!document.fullscreenElement) {
+                isInFullscreen = false;
+                isVRMode = false;
+                document.getElementById('hud').classList.add('hidden');
+                document.getElementById('exitFullscreenBtn').classList.add('hidden');
+            }
+        });
 
         window.onload = init;
     </script>

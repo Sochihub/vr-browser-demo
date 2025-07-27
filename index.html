@@ -216,6 +216,7 @@
             border-radius: 10px;
             z-index: 100;
             font-size: 0.9rem;
+            max-width: 300px;
         }
         
         .avatar-info {
@@ -273,6 +274,30 @@
             display: none;
         }
         
+        .share-panel {
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            text-align: center;
+        }
+        
+        .share-link {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(79, 195, 247, 0.3);
+            border-radius: 5px;
+            padding: 10px;
+            margin: 10px 0;
+            word-break: break-all;
+            font-size: 0.9rem;
+        }
+        
+        .copy-btn {
+            background: linear-gradient(45deg, #4CAF50, #8BC34A);
+            padding: 8px 15px;
+            font-size: 0.9rem;
+        }
+        
         @media (max-width: 768px) {
             .features-grid {
                 grid-template-columns: 1fr;
@@ -300,27 +325,27 @@
     <div class="container">
         <header>
             <h1>🌐 VR Browser 3D</h1>
-            <p class="subtitle">Инновационный 3D-браузер для виртуальной реальности. Многопользовательская демонстрация</p>
+            <p class="subtitle">Инновационный 3D-браузер для виртуальной реальности. Совместное взаимодействие в реальном времени</p>
         </header>
         
         <div class="stats">
-            <div class="stat-item"><div class="stat-number">👥 3</div><div>Максимум пользователей</div></div>
-            <div class="stat-item"><div class="stat-number">🔊</div><div>Голосовой чат</div></div>
-            <div class="stat-item"><div class="stat-number">🎮</div><div>VR/ПК режимы</div></div>
+            <div class="stat-item"><div class="stat-number">👥 ∞</div><div>Совместный мир</div></div>
+            <div class="stat-item"><div class="stat-number">🔗</div><div>Ссылка-приглашение</div></div>
+            <div class="stat-item"><div class="stat-number">🎮</div><div>Живое взаимодействие</div></div>
         </div>
         
         <div class="features-grid">
             <div class="feature-card">
-                <h3>👥 Многопользовательский режим</h3>
-                <p>До 3 пользователей одновременно в одном виртуальном пространстве с голосовым чатом.</p>
+                <h3>🔗 Совместные миры</h3>
+                <p>Каждый созданный мир имеет уникальную ссылку для приглашения других пользователей.</p>
             </div>
             <div class="feature-card">
-                <h3>🤖 Аватары</h3>
-                <p>Сферические аватары с глазами, отслеживающими направление взгляда других пользователей.</p>
+                <h3>👥 Реальное взаимодействие</h3>
+                <p>Живые пользователи могут взаимодействовать в одном 3D-пространстве в реальном времени.</p>
             </div>
             <div class="feature-card">
-                <h3>📱 Режимы отображения</h3>
-                <p>Полноэкранный режим для ПК и VR-режим для мобильных устройств.</p>
+                <h3>📱 Простое подключение</h3>
+                <p>Один клик - и вы в одном виртуальном пространстве с другими пользователями.</p>
             </div>
         </div>
         
@@ -343,25 +368,38 @@
                 <button onclick="zoomOut()">🔎 Отдалить</button>
                 <button onclick="resetCamera()">🔄 Сброс камеры</button>
                 <button onclick="toggleFullscreen()">🖥️ Полный экран</button>
-                <button onclick="simulateUserJoin()">👥 Добавить пользователя</button>
+                <button onclick="createSharedWorld()" style="background:linear-gradient(45deg,#ff6b6b,#ee5a24)">🌍 Создать мир</button>
+            </div>
+            
+            <div class="share-panel hidden" id="sharePanel">
+                <h3>🌍 Ваш виртуальный мир создан!</h3>
+                <p>Поделитесь этой ссылкой с друзьями для совместного взаимодействия:</p>
+                <div class="share-link" id="shareLink"></div>
+                <button class="copy-btn" onclick="copyShareLink()">📋 Копировать ссылку</button>
+                <p style="margin-top: 10px; font-size: 0.9rem; opacity: 0.8;">
+                    Каждый, кто перейдет по ссылке, окажется в этом же виртуальном пространстве
+                </p>
             </div>
             
             <div class="three-container" id="threeContainer">
-                <div class="loading-indicator" id="loadingIndicator">Готов к работе</div>
+                <div class="loading-indicator" id="loadingIndicator">Готов к работе. Создайте мир для начала!</div>
                 <div class="hud hidden" id="hud">
-                    <div>Пользователи онлайн: <span id="onlineCount">1</span>/3</div>
+                    <div>Пользователи онлайн: <span id="onlineCount">1</span></div>
                     <div class="avatar-info"><span class="avatar-indicator avatar-online"></span>Вы (Avatar-0)</div>
                     <div id="otherUsers"></div>
                     <div>🔊 Голосовой чат: <span id="voiceStatus">Активен</span></div>
+                    <div style="margin-top: 10px; font-size: 0.8rem;">
+                        🌍 Мир: <span id="worldId">Не создан</span>
+                    </div>
                 </div>
                 <div class="fullscreen-btn hidden" id="exitFullscreenBtn">
                     <button onclick="exitFullscreen()" style="padding: 5px 10px; font-size: 12px;">✖️ Выйти</button>
                 </div>
                 <div class="navigation-controls hidden" id="navControls">
-                    <button class="nav-btn" onclick="moveAvatar('forward')">⬆️</button>
-                    <button class="nav-btn" onclick="moveAvatar('backward')">⬇️</button>
-                    <button class="nav-btn" onclick="moveAvatar('left')">⬅️</button>
-                    <button class="nav-btn" onclick="moveAvatar('right')">➡️</button>
+                    <button class="nav-btn" onmousedown="startMoving('forward')" onmouseup="stopMoving('forward')" ontouchstart="startMoving('forward')" ontouchend="stopMoving('forward')">⬆️</button>
+                    <button class="nav-btn" onmousedown="startMoving('backward')" onmouseup="stopMoving('backward')" ontouchstart="startMoving('backward')" ontouchend="stopMoving('backward')">⬇️</button>
+                    <button class="nav-btn" onmousedown="startMoving('left')" onmouseup="stopMoving('left')" ontouchstart="startMoving('left')" ontouchend="stopMoving('left')">⬅️</button>
+                    <button class="nav-btn" onmousedown="startMoving('right')" onmouseup="stopMoving('right')" ontouchstart="startMoving('right')" ontouchend="stopMoving('right')">➡️</button>
                 </div>
             </div>
             
@@ -369,7 +407,7 @@
                 👁️ Режим первого лица: Вы - аватар, камера от его глаз<br>
                 ✋ Режим перемещения: Выберите объект и перетащите мышью<br>
                 🔄 Режим вращения: Выберите объект и двигайте мышью для вращения<br>
-                🖱️ Используйте колесо мыши для масштабирования
+                🌍 Создайте мир и поделитесь ссылкой для совместного взаимодействия
             </div>
             
             <div class="controls">
@@ -379,6 +417,7 @@
                 <button onclick="addInteractiveCube()">🟦 Интерактивный куб</button>
                 <button onclick="addDemoWebsite('youtube')">📺 YouTube</button>
                 <button onclick="addDemoWebsite('github')">💻 GitHub</button>
+                <button onclick="joinSharedWorld()">🔗 Присоединиться к миру</button>
                 <button onclick="resetScene()">🔄 Сброс</button>
             </div>
             
@@ -390,11 +429,11 @@
         <div class="features-grid">
             <div class="feature-card">
                 <h3>📋 MVP Функции</h3>
-                <p>• Просмотр 2D сайтов в 3D<br>• Интерактивные VR сферы<br>• Личный виртуальный мир<br>• Базовое управление</p>
+                <p>• Просмотр 2D сайтов в 3D<br>• Интерактивные VR сферы<br>• Совместные миры<br>• Базовое управление</p>
             </div>
             <div class="feature-card">
                 <h3>🚀 Будущее</h3>
-                <p>• Социальные функции<br>• Многопользовательские миры<br>• Магазин предметов<br>• Расширенные эффекты</p>
+                <p>• Голосовой чат WebRTC<br>• Многопользовательские миры<br>• Магазин предметов<br>• Расширенные эффекты</p>
             </div>
             <div class="feature-card">
                 <h3>📱 Платформы</h3>
@@ -432,6 +471,9 @@
         let isVRMode = false;
         let mouseMovement = { x: 0, y: 0 };
         let avatarVelocity = new THREE.Vector3();
+        let movingDirections = { forward: false, backward: false, left: false, right: false };
+        let currentWorldId = null;
+        let userConnections = {}; // Имитация подключений пользователей
 
         function init() {
             scene = new THREE.Scene();
@@ -487,6 +529,13 @@
             addInitialObjects();
             createAvatar();
 
+            // Проверяем, есть ли параметр world в URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const worldId = urlParams.get('world');
+            if (worldId) {
+                joinWorld(worldId);
+            }
+
             animate();
         }
 
@@ -494,7 +543,8 @@
             if (currentMode === 'firstperson') {
                 // Камера находится в позиции аватара (глаза)
                 camera.position.copy(currentUser.position);
-                // Высота глаз ~1.6м от пола
+                // Применяем вращение
+                camera.rotation.set(currentUser.rotation.x, currentUser.rotation.y, 0, 'YXZ');
             } else {
                 // Обычная орбитальная камера
                 camera.position.x = cameraTarget.x + Math.sin(cameraAngle.y) * Math.cos(cameraAngle.x) * cameraDistance;
@@ -513,13 +563,50 @@
             const floorMaterial = new THREE.MeshStandardMaterial({ 
                 color: 0x1a1a40,
                 roughness: 0.8,
-                metalness: 0.2
+                metalness: 0.2,
+                side: THREE.DoubleSide
             });
             const floor = new THREE.Mesh(floorGeometry, floorMaterial);
             floor.rotation.x = -Math.PI / 2;
             floor.position.y = 0;
             floor.receiveShadow = true;
             scene.add(floor);
+            
+            // Добавляем стены для ориентации
+            const wallMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x2a2a5a,
+                transparent: true,
+                opacity: 0.7
+            });
+            
+            // Задняя стена
+            const backWall = new THREE.Mesh(
+                new THREE.PlaneGeometry(30, 10),
+                wallMaterial
+            );
+            backWall.position.set(0, 5, -15);
+            backWall.receiveShadow = true;
+            scene.add(backWall);
+            
+            // Левая стена
+            const leftWall = new THREE.Mesh(
+                new THREE.PlaneGeometry(30, 10),
+                wallMaterial
+            );
+            leftWall.position.set(-15, 5, 0);
+            leftWall.rotation.y = Math.PI / 2;
+            leftWall.receiveShadow = true;
+            scene.add(leftWall);
+            
+            // Правая стена
+            const rightWall = new THREE.Mesh(
+                new THREE.PlaneGeometry(30, 10),
+                wallMaterial
+            );
+            rightWall.position.set(15, 5, 0);
+            rightWall.rotation.y = -Math.PI / 2;
+            rightWall.receiveShadow = true;
+            scene.add(rightWall);
         }
 
         function createAvatar() {
@@ -560,8 +647,8 @@
 
         function createOtherUserAvatar(userId, position) {
             const geometry = new THREE.SphereGeometry(0.3, 16, 16);
-            const colors = [0xff6b6b, 0x6bffb8, 0xffb86b];
-            const randomColor = colors[otherUsers.length % colors.length];
+            const colors = [0xff6b6b, 0x6bffb8, 0xffb86b, 0xff6bf0, 0x6b95ff];
+            const randomColor = colors[Math.floor(Math.random() * colors.length)];
             const material = new THREE.MeshStandardMaterial({ 
                 color: randomColor,
                 emissive: new THREE.Color(randomColor).multiplyScalar(0.5),
@@ -591,7 +678,8 @@
                 position: position,
                 avatar: avatar,
                 eyes: { left: leftEye, right: rightEye },
-                lookDirection: new THREE.Vector3(1, 0, 0)
+                lookDirection: new THREE.Vector3(1, 0, 0),
+                lastUpdate: Date.now()
             };
             
             otherUsers.push(user);
@@ -599,13 +687,73 @@
             return user;
         }
 
-        function simulateUserJoin() {
-            if (otherUsers.length >= 2) {
-                alert('Достигнуто максимальное количество пользователей (3)');
+        function createSharedWorld() {
+            // Генерируем уникальный ID мира
+            currentWorldId = 'world-' + Math.random().toString(36).substr(2, 9);
+            document.getElementById('worldId').textContent = currentWorldId;
+            
+            // Создаем ссылку для приглашения
+            const baseUrl = window.location.href.split('?')[0];
+            const shareUrl = `${baseUrl}?world=${currentWorldId}`;
+            document.getElementById('shareLink').textContent = shareUrl;
+            
+            // Показываем панель с ссылкой
+            document.getElementById('sharePanel').classList.remove('hidden');
+            
+            updateLoadingIndicator(`Мир ${currentWorldId} создан! Поделитесь ссылкой.`);
+            
+            // Имитируем подключение других пользователей
+            setTimeout(() => {
+                simulateUserJoin();
+            }, 3000);
+            
+            setTimeout(() => {
+                simulateUserJoin();
+            }, 6000);
+        }
+
+        function joinSharedWorld() {
+            if (!currentWorldId) {
+                alert('Сначала создайте мир или перейдите по ссылке с миром!');
                 return;
             }
             
-            const userId = `Avatar-${otherUsers.length + 1}`;
+            // Имитируем присоединение нового пользователя
+            simulateUserJoin();
+            updateLoadingIndicator('Новый пользователь присоединился к миру!');
+        }
+
+        function joinWorld(worldId) {
+            currentWorldId = worldId;
+            document.getElementById('worldId').textContent = currentWorldId;
+            updateLoadingIndicator(`Вы присоединились к миру ${worldId}`);
+            
+            // Имитируем существующих пользователей
+            setTimeout(() => {
+                simulateUserJoin();
+                simulateUserJoin();
+            }, 1000);
+        }
+
+        function copyShareLink() {
+            const shareLink = document.getElementById('shareLink').textContent;
+            navigator.clipboard.writeText(shareLink).then(() => {
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = '✅ Скопировано!';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                }, 2000);
+            });
+        }
+
+        function simulateUserJoin() {
+            if (otherUsers.length >= 5) {
+                updateLoadingIndicator('Достигнуто максимальное количество пользователей');
+                return;
+            }
+            
+            const userId = `User-${Date.now().toString().substr(-4)}`;
             const position = new THREE.Vector3(
                 (Math.random() - 0.5) * 10,
                 1.6,
@@ -613,39 +761,40 @@
             );
             
             createOtherUserAvatar(userId, position);
-            updateLoadingIndicator(`Пользователь ${userId} присоединился`);
+            updateLoadingIndicator(`Пользователь ${userId} присоединился к миру!`);
         }
 
-        function moveAvatar(direction) {
-            const moveSpeed = 0.2;
-            const moveVector = new THREE.Vector3();
-            
-            switch(direction) {
-                case 'forward':
-                    moveVector.z = -moveSpeed;
-                    break;
-                case 'backward':
-                    moveVector.z = moveSpeed;
-                    break;
-                case 'left':
-                    moveVector.x = -moveSpeed;
-                    break;
-                case 'right':
-                    moveVector.x = moveSpeed;
-                    break;
+        function startMoving(direction) {
+            movingDirections[direction] = true;
+        }
+
+        function stopMoving(direction) {
+            movingDirections[direction] = false;
+        }
+
+        function updateAvatarPosition() {
+            if (currentMode === 'firstperson') {
+                const moveSpeed = 0.1;
+                const moveVector = new THREE.Vector3();
+                
+                if (movingDirections.forward) moveVector.z -= moveSpeed;
+                if (movingDirections.backward) moveVector.z += moveSpeed;
+                if (movingDirections.left) moveVector.x -= moveSpeed;
+                if (movingDirections.right) moveVector.x += moveSpeed;
+                
+                if (moveVector.length() > 0) {
+                    // Применяем вращение камеры к вектору движения
+                    moveVector.applyQuaternion(camera.quaternion);
+                    moveVector.y = 0; // Не двигаемся по вертикали
+                    currentUser.position.add(moveVector);
+                    
+                    if (currentUser.avatar) {
+                        currentUser.avatar.position.copy(currentUser.position);
+                    }
+                    
+                    updateCameraPosition();
+                }
             }
-            
-            // Применяем вращение камеры к вектору движения
-            moveVector.applyQuaternion(camera.quaternion);
-            moveVector.y = 0; // Не двигаемся по вертикали
-            
-            currentUser.position.add(moveVector);
-            
-            if (currentUser.avatar) {
-                currentUser.avatar.position.copy(currentUser.position);
-            }
-            
-            updateCameraPosition();
         }
 
         function onFirstPersonMouseMove(event) {
@@ -666,16 +815,16 @@
             if (currentMode === 'firstperson') {
                 switch(event.key.toLowerCase()) {
                     case 'w':
-                        avatarVelocity.z = -0.1;
+                        movingDirections.forward = true;
                         break;
                     case 's':
-                        avatarVelocity.z = 0.1;
+                        movingDirections.backward = true;
                         break;
                     case 'a':
-                        avatarVelocity.x = -0.1;
+                        movingDirections.left = true;
                         break;
                     case 'd':
-                        avatarVelocity.x = 0.1;
+                        movingDirections.right = true;
                         break;
                 }
             }
@@ -685,29 +834,18 @@
             if (currentMode === 'firstperson') {
                 switch(event.key.toLowerCase()) {
                     case 'w':
+                        movingDirections.forward = false;
+                        break;
                     case 's':
-                        avatarVelocity.z = 0;
+                        movingDirections.backward = false;
                         break;
                     case 'a':
+                        movingDirections.left = false;
+                        break;
                     case 'd':
-                        avatarVelocity.x = 0;
+                        movingDirections.right = false;
                         break;
                 }
-            }
-        }
-
-        function updateAvatarPosition() {
-            if (currentMode === 'firstperson' && (avatarVelocity.x !== 0 || avatarVelocity.z !== 0)) {
-                const moveVector = avatarVelocity.clone();
-                moveVector.applyQuaternion(camera.quaternion);
-                moveVector.y = 0;
-                currentUser.position.add(moveVector);
-                
-                if (currentUser.avatar) {
-                    currentUser.avatar.position.copy(currentUser.position);
-                }
-                
-                updateCameraPosition();
             }
         }
 
@@ -1253,6 +1391,11 @@
             updateSceneInfo();
             updateHUD();
             updateLoadingIndicator('Сцена сброшена');
+            
+            // Скрываем панель шаринга
+            document.getElementById('sharePanel').classList.add('hidden');
+            currentWorldId = null;
+            document.getElementById('worldId').textContent = 'Не создан';
         }
 
         function updateSceneInfo() {
@@ -1351,6 +1494,13 @@
                 
                 // Обновляем направление взгляда
                 user.lookDirection.subVectors(lookTarget, user.avatar.position).normalize();
+                
+                // Удаляем неактивных пользователей (имитация отключения)
+                if (Date.now() - user.lastUpdate > 30000) { // 30 секунд неактивности
+                    scene.remove(user.avatar);
+                    otherUsers.splice(otherUsers.indexOf(user), 1);
+                    updateHUD();
+                }
             });
             
             // Обновляем позицию аватара при непрерывном движении

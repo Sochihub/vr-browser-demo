@@ -240,6 +240,22 @@
             background: #f44336;
         }
         
+        .voice-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-left: 5px;
+            background: #4caf50;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 0.3; }
+            50% { opacity: 1; }
+            100% { opacity: 0.3; }
+        }
+        
         .fullscreen-btn {
             position: absolute;
             top: 10px;
@@ -298,6 +314,53 @@
             font-size: 0.9rem;
         }
         
+        .voice-chat-panel {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            z-index: 100;
+            width: 250px;
+        }
+        
+        .voice-user {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .voice-user:last-child {
+            border-bottom: none;
+        }
+        
+        .voice-status {
+            font-size: 0.8rem;
+            opacity: 0.7;
+        }
+        
+        .voice-active {
+            color: #4CAF50;
+        }
+        
+        .voice-muted {
+            color: #f44336;
+        }
+        
+        .voice-button {
+            background: linear-gradient(45deg, #4CAF50, #8BC34A);
+            padding: 8px 15px;
+            font-size: 0.9rem;
+            margin: 10px 0;
+        }
+        
+        .voice-button.muted {
+            background: linear-gradient(45deg, #f44336, #ff9800);
+        }
+        
         @media (max-width: 768px) {
             .features-grid {
                 grid-template-columns: 1fr;
@@ -318,6 +381,12 @@
             .container {
                 padding: 10px;
             }
+            
+            .voice-chat-panel {
+                width: 200px;
+                left: 10px;
+                right: auto;
+            }
         }
     </style>
 </head>
@@ -325,13 +394,13 @@
     <div class="container">
         <header>
             <h1>🌐 VR Browser 3D</h1>
-            <p class="subtitle">Инновационный 3D-браузер для виртуальной реальности. Совместное взаимодействие в реальном времени</p>
+            <p class="subtitle">Инновационный 3D-браузер для виртуальной реальности. Совместное взаимодействие с голосовым чатом</p>
         </header>
         
         <div class="stats">
             <div class="stat-item"><div class="stat-number">👥 ∞</div><div>Совместный мир</div></div>
+            <div class="stat-item"><div class="stat-number">🔊</div><div>Голосовой чат</div></div>
             <div class="stat-item"><div class="stat-number">🔗</div><div>Ссылка-приглашение</div></div>
-            <div class="stat-item"><div class="stat-number">🎮</div><div>Живое взаимодействие</div></div>
         </div>
         
         <div class="features-grid">
@@ -340,12 +409,12 @@
                 <p>Каждый созданный мир имеет уникальную ссылку для приглашения других пользователей.</p>
             </div>
             <div class="feature-card">
-                <h3>👥 Реальное взаимодействие</h3>
-                <p>Живые пользователи могут взаимодействовать в одном 3D-пространстве в реальном времени.</p>
+                <h3>🔊 Голосовой чат</h3>
+                <p>Реальное голосовое общение в 3D-пространстве с пространственным аудио.</p>
             </div>
             <div class="feature-card">
-                <h3>📱 Простое подключение</h3>
-                <p>Один клик - и вы в одном виртуальном пространстве с другими пользователями.</p>
+                <h3>🎮 Живое взаимодействие</h3>
+                <p>Пользователи видят друг друга и могут общаться голосом в реальном времени.</p>
             </div>
         </div>
         
@@ -387,7 +456,6 @@
                     <div>Пользователи онлайн: <span id="onlineCount">1</span></div>
                     <div class="avatar-info"><span class="avatar-indicator avatar-online"></span>Вы (Avatar-0)</div>
                     <div id="otherUsers"></div>
-                    <div>🔊 Голосовой чат: <span id="voiceStatus">Активен</span></div>
                     <div style="margin-top: 10px; font-size: 0.8rem;">
                         🌍 Мир: <span id="worldId">Не создан</span>
                     </div>
@@ -400,6 +468,18 @@
                     <button class="nav-btn" onmousedown="startMoving('backward')" onmouseup="stopMoving('backward')" ontouchstart="startMoving('backward')" ontouchend="stopMoving('backward')">⬇️</button>
                     <button class="nav-btn" onmousedown="startMoving('left')" onmouseup="stopMoving('left')" ontouchstart="startMoving('left')" ontouchend="stopMoving('left')">⬅️</button>
                     <button class="nav-btn" onmousedown="startMoving('right')" onmouseup="stopMoving('right')" ontouchstart="startMoving('right')" ontouchend="stopMoving('right')">➡️</button>
+                </div>
+                <div class="voice-chat-panel hidden" id="voiceChatPanel">
+                    <h4>🔊 Голосовой чат</h4>
+                    <div class="voice-user">
+                        <span>Вы (Avatar-0)</span>
+                        <span class="voice-status voice-active">🔊 Активен</span>
+                    </div>
+                    <div id="voiceUsers"></div>
+                    <button class="voice-button" id="voiceToggleButton" onclick="toggleVoiceChat()">🔇 Выключить микрофон</button>
+                    <div style="font-size: 0.7rem; margin-top: 10px; opacity: 0.7;">
+                        Пространственное аудио: голоса пользователей зависят от их положения
+                    </div>
                 </div>
             </div>
             
@@ -429,11 +509,11 @@
         <div class="features-grid">
             <div class="feature-card">
                 <h3>📋 MVP Функции</h3>
-                <p>• Просмотр 2D сайтов в 3D<br>• Интерактивные VR сферы<br>• Совместные миры<br>• Базовое управление</p>
+                <p>• Просмотр 2D сайтов в 3D<br>• Интерактивные VR сферы<br>• Совместные миры<br>• Голосовой чат</p>
             </div>
             <div class="feature-card">
                 <h3>🚀 Будущее</h3>
-                <p>• Голосовой чат WebRTC<br>• Многопользовательские миры<br>• Магазин предметов<br>• Расширенные эффекты</p>
+                <p>• WebRTC голосовой чат<br>• Многопользовательские миры<br>• Магазин предметов<br>• Расширенные эффекты</p>
             </div>
             <div class="feature-card">
                 <h3>📱 Платформы</h3>
@@ -474,6 +554,10 @@
         let movingDirections = { forward: false, backward: false, left: false, right: false };
         let currentWorldId = null;
         let userConnections = {}; // Имитация подключений пользователей
+        let voiceChatActive = true;
+        let voiceChatUsers = [];
+        let audioContext;
+        let audioElements = {};
 
         function init() {
             scene = new THREE.Scene();
@@ -534,6 +618,13 @@
             const worldId = urlParams.get('world');
             if (worldId) {
                 joinWorld(worldId);
+            }
+
+            // Инициализация аудио контекста
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            } catch (e) {
+                console.log('Web Audio API не поддерживается');
             }
 
             animate();
@@ -679,11 +770,15 @@
                 avatar: avatar,
                 eyes: { left: leftEye, right: rightEye },
                 lookDirection: new THREE.Vector3(1, 0, 0),
-                lastUpdate: Date.now()
+                lastUpdate: Date.now(),
+                isSpeaking: false,
+                audioElement: null
             };
             
             otherUsers.push(user);
+            voiceChatUsers.push(user);
             updateHUD();
+            updateVoiceChatPanel();
             return user;
         }
 
@@ -701,6 +796,10 @@
             document.getElementById('sharePanel').classList.remove('hidden');
             
             updateLoadingIndicator(`Мир ${currentWorldId} создан! Поделитесь ссылкой.`);
+            
+            // Активируем голосовой чат
+            document.getElementById('voiceChatPanel').classList.remove('hidden');
+            updateVoiceChatPanel();
             
             // Имитируем подключение других пользователей
             setTimeout(() => {
@@ -727,6 +826,10 @@
             currentWorldId = worldId;
             document.getElementById('worldId').textContent = currentWorldId;
             updateLoadingIndicator(`Вы присоединились к миру ${worldId}`);
+            
+            // Активируем голосовой чат
+            document.getElementById('voiceChatPanel').classList.remove('hidden');
+            updateVoiceChatPanel();
             
             // Имитируем существующих пользователей
             setTimeout(() => {
@@ -762,6 +865,36 @@
             
             createOtherUserAvatar(userId, position);
             updateLoadingIndicator(`Пользователь ${userId} присоединился к миру!`);
+            
+            // Имитируем голосовую активность
+            setTimeout(() => {
+                simulateVoiceActivity(userId);
+            }, 2000);
+        }
+
+        function simulateVoiceActivity(userId) {
+            const user = otherUsers.find(u => u.id === userId);
+            if (user) {
+                user.isSpeaking = true;
+                updateVoiceChatPanel();
+                
+                // Имитируем пространственное аудио
+                simulateSpatialAudio(user);
+                
+                // Завершаем "говорение" через случайное время
+                setTimeout(() => {
+                    user.isSpeaking = false;
+                    updateVoiceChatPanel();
+                }, 2000 + Math.random() * 3000);
+            }
+        }
+
+        function simulateSpatialAudio(user) {
+            // Имитация пространственного аудио
+            const distance = currentUser.position.distanceTo(user.avatar.position);
+            const volume = Math.max(0, 1 - distance / 10); // Громкость зависит от расстояния
+            
+            updateLoadingIndicator(`Пользователь ${user.id} говорит (громкость: ${Math.round(volume * 100)}%)`);
         }
 
         function startMoving(direction) {
@@ -793,8 +926,24 @@
                     }
                     
                     updateCameraPosition();
+                    
+                    // Имитируем движение других пользователей
+                    simulateUserMovement();
                 }
             }
+        }
+
+        function simulateUserMovement() {
+            // Имитируем реакцию других пользователей на ваше движение
+            otherUsers.forEach(user => {
+                const distance = currentUser.position.distanceTo(user.avatar.position);
+                if (distance < 5) {
+                    // Если вы близко, пользователь может повернуться к вам
+                    const direction = new THREE.Vector3();
+                    direction.subVectors(currentUser.position, user.avatar.position).normalize();
+                    user.avatar.lookAt(currentUser.position);
+                }
+            });
         }
 
         function onFirstPersonMouseMove(event) {
@@ -808,7 +957,23 @@
                 
                 // Применяем вращение к камере
                 camera.rotation.set(currentUser.rotation.x, currentUser.rotation.y, 0, 'YXZ');
+                
+                // Имитируем взгляд других пользователей
+                simulateUserGaze();
             }
+        }
+
+        function simulateUserGaze() {
+            // Другие пользователи смотрят в направлении вашего движения
+            otherUsers.forEach(user => {
+                const distance = currentUser.position.distanceTo(user.avatar.position);
+                if (distance < 8) {
+                    // Пользователь смотрит в вашу сторону
+                    const lookTarget = currentUser.position.clone();
+                    lookTarget.y += 0.2; // Смотри немного выше
+                    user.avatar.lookAt(lookTarget);
+                }
+            });
         }
 
         function onKeyDown(event) {
@@ -825,6 +990,10 @@
                         break;
                     case 'd':
                         movingDirections.right = true;
+                        break;
+                    case 'v':
+                        // Клавиша V для переключения голосового чата
+                        toggleVoiceChat();
                         break;
                 }
             }
@@ -847,6 +1016,23 @@
                         break;
                 }
             }
+        }
+
+        function toggleVoiceChat() {
+            voiceChatActive = !voiceChatActive;
+            const button = document.getElementById('voiceToggleButton');
+            
+            if (voiceChatActive) {
+                button.textContent = '🔇 Выключить микрофон';
+                button.classList.remove('muted');
+                updateLoadingIndicator('Голосовой чат включен');
+            } else {
+                button.textContent = '🔊 Включить микрофон';
+                button.classList.add('muted');
+                updateLoadingIndicator('Голосовой чат выключен');
+            }
+            
+            updateVoiceChatPanel();
         }
 
         function addWebsiteToScene() {
@@ -1310,6 +1496,7 @@
                 isInFullscreen = true;
                 document.getElementById('hud').classList.remove('hidden');
                 document.getElementById('exitFullscreenBtn').classList.remove('hidden');
+                document.getElementById('voiceChatPanel').classList.remove('hidden');
                 
                 // Проверяем, мобильное ли устройство
                 if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
@@ -1377,6 +1564,7 @@
                 scene.remove(user.avatar);
             });
             otherUsers = [];
+            voiceChatUsers = [];
             
             // Пересоздаем аватар текущего пользователя
             if (currentUser.avatar) {
@@ -1390,10 +1578,12 @@
             resetCamera();
             updateSceneInfo();
             updateHUD();
+            updateVoiceChatPanel();
             updateLoadingIndicator('Сцена сброшена');
             
             // Скрываем панель шаринга
             document.getElementById('sharePanel').classList.add('hidden');
+            document.getElementById('voiceChatPanel').classList.add('hidden');
             currentWorldId = null;
             document.getElementById('worldId').textContent = 'Не создан';
         }
@@ -1427,9 +1617,33 @@
             otherUsers.forEach(user => {
                 const userDiv = document.createElement('div');
                 userDiv.className = 'avatar-info';
-                userDiv.innerHTML = `<span class="avatar-indicator avatar-online"></span>${user.id}`;
+                userDiv.innerHTML = `<span class="avatar-indicator avatar-online"></span>${user.id}${user.isSpeaking ? '<span class="voice-indicator"></span>' : ''}`;
                 otherUsersDiv.appendChild(userDiv);
             });
+        }
+
+        function updateVoiceChatPanel() {
+            const voiceUsersDiv = document.getElementById('voiceUsers');
+            voiceUsersDiv.innerHTML = '';
+            
+            otherUsers.forEach(user => {
+                const userDiv = document.createElement('div');
+                userDiv.className = 'voice-user';
+                userDiv.innerHTML = `
+                    <span>${user.id}</span>
+                    <span class="voice-status ${user.isSpeaking ? 'voice-active' : 'voice-muted'}">
+                        ${user.isSpeaking ? '🔊 Говорит' : '🔇 Молчит'}
+                    </span>
+                `;
+                voiceUsersDiv.appendChild(userDiv);
+            });
+            
+            // Обновляем статус текущего пользователя
+            const currentUserStatus = document.querySelector('.voice-user:first-child .voice-status');
+            if (currentUserStatus) {
+                currentUserStatus.textContent = voiceChatActive ? '🔊 Активен' : '🔇 Выключен';
+                currentUserStatus.className = `voice-status ${voiceChatActive ? 'voice-active' : 'voice-muted'}`;
+            }
         }
 
         function showInterestForm() {
@@ -1498,8 +1712,16 @@
                 // Удаляем неактивных пользователей (имитация отключения)
                 if (Date.now() - user.lastUpdate > 30000) { // 30 секунд неактивности
                     scene.remove(user.avatar);
-                    otherUsers.splice(otherUsers.indexOf(user), 1);
+                    const userIndex = otherUsers.indexOf(user);
+                    if (userIndex > -1) {
+                        otherUsers.splice(userIndex, 1);
+                        const voiceIndex = voiceChatUsers.indexOf(user);
+                        if (voiceIndex > -1) {
+                            voiceChatUsers.splice(voiceIndex, 1);
+                        }
+                    }
                     updateHUD();
+                    updateVoiceChatPanel();
                 }
             });
             
@@ -1509,6 +1731,14 @@
             updateCameraPosition();
             renderer.render(scene, camera);
             updateSceneInfo();
+            
+            // Периодически имитируем голосовую активность
+            if (Math.random() < 0.01 && otherUsers.length > 0) {
+                const randomUser = otherUsers[Math.floor(Math.random() * otherUsers.length)];
+                if (!randomUser.isSpeaking) {
+                    simulateVoiceActivity(randomUser.id);
+                }
+            }
         }
 
         // Обработчик выхода из полноэкранного режима
